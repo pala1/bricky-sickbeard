@@ -34,6 +34,11 @@ import signal
 import traceback
 import getopt
 
+# Root path
+base_path = os.path.dirname(os.path.abspath(__file__))
+# Insert local directories into path
+sys.path.insert(0, os.path.join(base_path, 'lib'))
+
 import sickbeard
 
 from sickbeard import db
@@ -47,6 +52,7 @@ from lib.configobj import ConfigObj
 
 signal.signal(signal.SIGINT, sickbeard.sig_handler)
 signal.signal(signal.SIGTERM, sickbeard.sig_handler)
+
 
 
 def loadShowsFromDB():
