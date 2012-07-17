@@ -23,15 +23,19 @@ from sickbeard.helpers import sanitizeSceneName
 from sickbeard import name_cache
 from sickbeard import logger
 from sickbeard import db
+from sickbeard.custom_exceptions import get_custom_exceptions, get_custom_exception_by_name 
 
-def get_scene_exceptions(tvdb_id):
+def get_scene_exceptions(tvdb_id, ignoreCustom=False):
     """
     Given a tvdb_id, return a list of all the scene exceptions.
     """
 
     myDB = db.DBConnection("cache.db")
     exceptions = myDB.select("SELECT show_name FROM scene_exceptions WHERE tvdb_id = ?", [tvdb_id])
-    return [cur_exception["show_name"] for cur_exception in exceptions]
+    if ignoreCustom:
+        return [cur_exception["show_name"] for cur_exception in exceptions]
+    else:
+        return list(set([cur_exception["show_name"] for cur_exception in exceptions] + get_custom_exceptions(tvdb_id)))
 
 def get_scene_exception_by_name(show_name):
     """
@@ -55,8 +59,11 @@ def get_scene_exception_by_name(show_name):
         if show_name.lower() in (cur_exception_name.lower(), sanitizeSceneName(cur_exception_name).lower().replace('.',' ')):
             logger.log(u"Scene exception lookup got tvdb id "+str(cur_tvdb_id)+u", using that", logger.DEBUG)
             return cur_tvdb_id
-
-    return None
+        
+    
+    # if we get to here, try custom_exceptions instead
+    return get_custom_exception_by_name(show_name)
+    #return None
 
 def retrieve_exceptions():
     """

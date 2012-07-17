@@ -87,6 +87,16 @@ replace with: <b><%=", ".join([Quality.qualityStrings[x] for x in bestQualities]
     <tr><td class="showLegend">Season Folders: </td><td><img src="$sbRoot/images/#if $show.seasonfolders == 1 then "yes16.png\" alt=\"Y" else "no16.png\" alt=\"N"#" width="16" height="16" /></td></tr>
     <tr><td class="showLegend">Paused: </td><td><img src="$sbRoot/images/#if int($show.paused) == 1 then "yes16.png\" alt=\"Y" else "no16.png\" alt=\"N"#" width="16" height="16" /></td></tr>
     <tr><td class="showLegend">Air-by-Date: </td><td><img src="$sbRoot/images/#if int($show.air_by_date) == 1 then "yes16.png\" alt=\"Y" else "no16.png\" alt=\"N"#" width="16" height="16" /></td></tr>
+#if $all_scene_exceptions:  
+	<tr>
+		<td class="showLegend">Alternate Scene Names:</td>
+		<td>
+			#for $one_exception in sorted($all_scene_exceptions)
+				$one_exception<br />
+			#end for
+		</td>
+	</tr>
+#end if
 </table>
 </div>
 

@@ -45,6 +45,8 @@ from sickbeard.common import Quality, Overview, statusStrings
 from sickbeard.common import SNATCHED, DOWNLOADED, SKIPPED, UNAIRED, IGNORED, ARCHIVED, WANTED
 from sickbeard.exceptions import ex
 from sickbeard.webapi import Api
+from sickbeard.scene_exceptions import get_scene_exceptions
+from sickbeard.custom_exceptions import get_custom_exceptions, set_custom_exceptions
 
 from lib.tvdb_api import tvdb_api
 
@@ -2304,6 +2306,10 @@ class Home:
 
         t.epCounts = epCounts
         t.epCats = epCats
+        
+        #t.all_scene_exceptions = list(set((get_scene_exceptions(showObj.tvdbid) or []) + (get_custom_exceptions(showObj.tvdbid) or []))) 
+        t.all_scene_exceptions = get_scene_exceptions(showObj.tvdbid)
+        logger.log(u'Home.displayShow with all_scene_exceptions = ' + str(t.all_scene_exceptions) , logger.DEBUG)
 
         return _munge(t)
 
@@ -2313,7 +2319,7 @@ class Home:
         return result['description'] if result else 'Episode not found.'
 
     @cherrypy.expose
-    def editShow(self, show=None, location=None, anyQualities=[], bestQualities=[], seasonfolders=None, paused=None, directCall=False, air_by_date=None, tvdbLang=None):
+    def editShow(self, show=None, location=None, anyQualities=[], bestQualities=[], seasonfolders=None, paused=None, directCall=False, air_by_date=None, tvdbLang=None, custom_exceptions=None):
 
         if show == None:
             errString = "Invalid show ID: "+str(show)
@@ -2323,6 +2329,8 @@ class Home:
                 return _genericMessage("Error", errString)
 
         showObj = sickbeard.helpers.findCertainShow(sickbeard.showList, int(show))
+        
+        logger.log(u'Home.editShow with showObj = ' + str(showObj) , logger.DEBUG)
 
         if showObj == None:
             errString = "Unable to find the specified show: "+str(show)
@@ -2337,6 +2345,9 @@ class Home:
             t.submenu = HomeMenu()
             with showObj.lock:
                 t.show = showObj
+                
+            t.scene_exceptions = get_scene_exceptions(showObj.tvdbid, True)
+            t.custom_exceptions = get_custom_exceptions(showObj.tvdbid)
 
             return _munge(t)
 
@@ -2365,6 +2376,16 @@ class Home:
             do_update = False
         else:
             do_update = True
+            
+
+        # Make custom_exceptions into a tidy list of names
+        if custom_exceptions == None:
+            custom_exceptions = []
+        else:
+            custom_exceptions = [el for el in custom_exceptions.strip().splitlines() if el.strip() <> '']
+            
+        set_custom_exceptions(showObj.tvdbid, custom_exceptions)
+            
 
         if type(anyQualities) != list:
             anyQualities = [anyQualities]

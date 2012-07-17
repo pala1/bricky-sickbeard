@@ -72,6 +72,23 @@ Air by date:
 <input type="checkbox" name="air_by_date" #if $show.air_by_date == 1 then "checked=\"checked\"" else ""# /><br />
 (check this if the show is released as Show.03.02.2010 rather than Show.S02E03) 
 <br /><br />
+Alternate Scene Names (automatically updated from <a href="http://midgetspy.github.com/sb_tvdb_scene_exceptions/exceptions.txt">here</a>): 
+#if $scene_exceptions:
+	<br /><ul>
+	#for $one_exception in $scene_exceptions
+		<li>$one_exception</li>
+	#end for
+	</ul>
+#else
+	<em style="color: #c0c0c0">None</em><br /><br />
+#end if
+
+Custom Scene Names (one per line):<br />
+<textarea rows="5" cols="50" name="custom_exceptions" id="custom_exceptions">
+#for $one_exception in $custom_exceptions
+$one_exception
+#end for
+</textarea><br /><br />
 <input type="submit" value="Submit" />
 </form>
 
