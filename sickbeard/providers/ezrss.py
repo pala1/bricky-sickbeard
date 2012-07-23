@@ -140,14 +140,36 @@ class EZRSSProvider(generic.TorrentProvider):
     def _get_title_and_url(self, item):
         (title, url) = generic.TorrentProvider._get_title_and_url(self, item)
         
-        torrent_node = item.getElementsByTagName('torrent')[0]
-        filename_node = torrent_node.getElementsByTagName('fileName')[0]
-        filename = get_xml_text(filename_node)
+        if url and url.startswith(('http://twitter.com/', 'https://twitter.com/')):
+            # this feed came from twitter
+            #
+            # we need to extract the filename and url from the twitter message (the url we have currently is just that of the twitter message,
+            # which is of little use to us).
+            # The message looks something like this:
+            # eztv_it: History Ch The Universe Season 4 08of12 Space Wars XviD AC3 [MVGroup org] - http://t.co/mGTrhB4a
+            #
+            # Start by splitting the (real) url from the filename
+            title, url = title.rsplit(' - http', 1)
+            url = 'http' + url
+            
+            # Then strip off the leading eztv_it:
+            if title.startswith('eztv_it:'):
+                title = title[8:]
+                
+            # For safety we remove any whitespace too.
+            title = title.strip()
+            
+            logger.log(u"Extracted the name %s and url %s from the twitter link"%(title, url), logger.DEBUG)
+        else:
+            # this feed came from ezrss
+            torrent_node = item.getElementsByTagName('torrent')[0]
+            filename_node = torrent_node.getElementsByTagName('fileName')[0]
+            filename = get_xml_text(filename_node)
         
-        new_title = self._extract_name_from_filename(filename)
-        if new_title:
-            title = new_title
-            logger.log(u"Extracted the name "+title+" from the torrent link", logger.DEBUG)
+            new_title = self._extract_name_from_filename(filename)
+            if new_title:
+                title = new_title
+                logger.log(u"Extracted the name "+title+" from the torrent link", logger.DEBUG)
 
         return (title, url)
 
@@ -176,6 +198,13 @@ class EZRSSCache(tvcache.TVCache):
         logger.log(u"EZRSS cache update URL: "+ url, logger.DEBUG)
 
         data = self.provider.getURL(url)
+        
+        if (data == None):
+            # getURL returns None when it fails.  Normally we'd give up, 
+            # but here we can fall back on the twitter feed as follows:
+            twitter_url = 'https://twitter.com/statuses/user_timeline/eztv_it.rss'
+            logger.log(u"EZRSS url %s failed, falling back on %s "%(url, twitter_url), logger.MESSAGE)
+            data = self.provider.getURL(twitter_url)
 
         return data
 
