@@ -1,3 +1,22 @@
+# About this fork
+
+This is a fork of the incredible [Sick Beard](https://github.com/midgetspy/Sick-Beard), with some additions regarding torrent support and some other areas.  
+Specificially it includes support for the [ShowRSS](http://showrss.karmorra.info/) torrent feed (with some limited backlog support), and a UI for adding custom (local) scene exception names.  
+
+In addition to the libraries/projects used by [Sick Beard](https://github.com/midgetspy/Sick-Beard), this fork also leverages from the following:  
+
+* [Beautiful Soup](http://www.crummy.com/software/BeautifulSoup/)
+
+See [here](http://brickybox.com/2012/07/11/sickbeard-support-for-showrss) for some further info.  
+
+
+* * *
+
+*Original readme from Sick Beard is included below*
+
+* * *
+
+
 Sick Beard
 =====
 
@@ -54,3 +73,5 @@ If you find a bug please report it or it'll never get fixed. Verify that it hasn
 [googleissues]: http://code.google.com/p/sickbeard/issues/list
 [googlenewissue]: http://code.google.com/p/sickbeard/issues/entry
 [jsonrpclib]: https://github.com/joshmarshall/jsonrpclib
+[showrss]: 
+[bbshowrsspost]: 
