@@ -1,7 +1,7 @@
 # About this fork
 
 This is a fork of the incredible [Sick Beard](https://github.com/midgetspy/Sick-Beard), with some additions regarding torrent support and some other areas.  
-Specificially it includes 
+Specifically it includes 
 * Support for the [ShowRSS](http://showrss.karmorra.info/) torrent feed (with some limited backlog support), 
 * a UI for adding custom (local) scene exception names,
 * use of twitter rss as a fallback when ezrss fails.
