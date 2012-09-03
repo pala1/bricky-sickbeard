@@ -20,12 +20,17 @@ from xml.dom.minidom import parseString
 from pprint import pprint
 from bs4 import BeautifulSoup
 
+import time
 import sickbeard
 import generic
 
 from sickbeard import helpers
 from sickbeard import logger
 from sickbeard import tvcache
+from sickbeard.scene_exceptions import get_scene_exceptions
+
+UPDATE_INTERVAL = 432000 # 5 days
+ATTEMPT_EXCEPTIONS_IF_NOT_KNOWN = True
 
 class ShowRssProvider(generic.TorrentProvider):
     
@@ -62,6 +67,7 @@ class ShowRssProvider(generic.TorrentProvider):
     
     
     knownShows = None   # pulled in from ShowRss as needed
+    mtime = 0   # this is the last update timestamp
     
     def _getShowRssIdForShow(self, showName):
         """
@@ -69,7 +75,7 @@ class ShowRssProvider(generic.TorrentProvider):
         Returns None if unknown or not found.
         """
 
-        if self.knownShows == None:
+        if self.knownShows == None or (time.time() > (self.mtime + UPDATE_INTERVAL)):
             # pull in the list of feeds from the browse page
             logger.log(u"ShowRssProvider doing lookup of id mapping", logger.DEBUG)
             rawPage = self.getURL('%s?cs=feeds' % (self.url))
@@ -91,8 +97,10 @@ class ShowRssProvider(generic.TorrentProvider):
                             pass
                         
                 logger.log(u"knownShows: " + str(self.knownShows), logger.DEBUG)
+                self.mtime = time.time()
             else:
-                logger.log(u"Couldn't find the select named 'name' on the showRss browse page, falling back to static list of known shows", logger.WARNING)
+                logger.log(u"Couldn't find the select named 'show' on the showRss browse page, falling back to static list of known shows", logger.WARNING)
+                self.mtime = time.time()
                 self.knownShows = {
                     '2 Broke Girls': 378, 
                     '30 Rock': 2, 
@@ -420,7 +428,7 @@ class ShowRssProvider(generic.TorrentProvider):
             parsedXML = parseString(data)
             items = parsedXML.getElementsByTagName('item')
         except Exception, e:
-            logger.log(u"Error trying to load EZRSS RSS feed: "+ex(e), logger.ERROR)
+            logger.log(u"Error trying to load EZRSS RSS feed: " + e, logger.ERROR)
             logger.log(u"RSS data: "+data, logger.DEBUG)
             return []
         
@@ -448,12 +456,18 @@ class ShowRssProvider(generic.TorrentProvider):
         ShowRssId = self._getShowRssIdForShow(show.name)
         if ShowRssId:
             params['ShowRssId'] = ShowRssId
-        else:
-            logger.log(u"Show %s doesn't appear to be known to ShowRSS" % show.name, logger.MESSAGE)
-            return []
-    
-        return [params]
+            return [params]
         
+        if ATTEMPT_EXCEPTIONS_IF_NOT_KNOWN:
+            for otherName in get_scene_exceptions(show.tvdbid):
+                ShowRssId = self._getShowRssIdForShow(otherName)
+                if ShowRssId:
+                    params['ShowRssId'] = ShowRssId
+                    return [params]
+        
+        logger.log(u"Show %s doesn't appear to be known to ShowRSS" % show.name, logger.MESSAGE)
+        return []
+
 
 class ShowRssCache(tvcache.TVCache):
 
