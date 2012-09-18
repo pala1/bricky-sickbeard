@@ -5,6 +5,7 @@ Specifically it includes
 * Support for the [ShowRSS](http://showrss.karmorra.info/) torrent feed (with some limited backlog support), 
 * a UI for adding custom (local) scene exception names,
 * use of twitter rss as a fallback when ezrss fails.
+* Support for the [Kickass Torrents](http://kat.ph/) torrent site (including backlog).  Searches verified torrents only.
 
 In addition to the libraries/projects used by [Sick Beard](https://github.com/midgetspy/Sick-Beard), this fork also leverages from the following:  
 
