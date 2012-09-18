@@ -62,7 +62,7 @@
                             <a href="$curProvider.url" class="imgLink" target="_new"><img src="$sbRoot/images/providers/$curProvider.imageName()" alt="" title="$curProvider.name" width="16" height="16" /></a>
                             $curProvider.name
                             #if not $curProvider.supportsBacklog then "*" else ""#
-                            #if $curProvider.name in ("EZRSS", "ShowRSS") then "**" else ""#
+                            #if $curProvider.name in ("EZRSS", "ShowRSS", "KAT") then "**" else ""#
                             <span class="ui-icon ui-icon-arrowthick-2-n-s pull-right"></span>
                           </li>
                         #end for

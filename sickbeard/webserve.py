@@ -1098,6 +1098,8 @@ class ConfigProviders:
                 sickbeard.BTN = curEnabled
             elif curProvider == 'showrss':
                 sickbeard.SHOWRSS = curEnabled
+            elif curProvider == 'kat':
+                sickbeard.KAT = curEnabled
             elif curProvider in newznabProviderDict:
                 newznabProviderDict[curProvider].enabled = bool(curEnabled)
             else:

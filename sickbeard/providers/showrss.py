@@ -428,7 +428,7 @@ class ShowRssProvider(generic.TorrentProvider):
             parsedXML = parseString(data)
             items = parsedXML.getElementsByTagName('item')
         except Exception, e:
-            logger.log(u"Error trying to load EZRSS RSS feed: " + e, logger.ERROR)
+            logger.log(u"Error trying to load ShowRSS RSS feed: " + e, logger.ERROR)
             logger.log(u"RSS data: "+data, logger.DEBUG)
             return []
         
@@ -439,7 +439,7 @@ class ShowRssProvider(generic.TorrentProvider):
             (title, url) = self._get_title_and_url(curItem)
             
             if not title or not url:
-                logger.log(u"The XML returned from the EZRSS RSS feed is incomplete, this result is unusable: "+data, logger.ERROR)
+                logger.log(u"The XML returned from the ShowRSS feed is incomplete, this result is unusable: "+data, logger.ERROR)
                 continue
     
             results.append(curItem)
