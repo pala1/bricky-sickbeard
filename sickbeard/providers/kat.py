@@ -16,17 +16,20 @@
 # You should have received a copy of the GNU General Public License
 # along with Sick Beard.  If not, see <http://www.gnu.org/licenses/>.
 
-import urllib
-import re
+import urllib, urllib2
+import StringIO, zlib, gzip
+import re, socket
 from xml.dom.minidom import parseString
+from httplib import BadStatusLine
+import traceback
 
 import sickbeard
 import generic
 
-from sickbeard.common import Quality
+from sickbeard.common import Quality, USER_AGENT
 from sickbeard import logger
 from sickbeard import tvcache
-from sickbeard.helpers import sanitizeSceneName, get_xml_text
+from sickbeard import helpers
 from sickbeard.exceptions import ex
 
 class KATProvider(generic.TorrentProvider):
@@ -55,7 +58,7 @@ class KATProvider(generic.TorrentProvider):
         
         # I think the only place we can get anything resembing the filename is in 
         # the title
-        filename = get_xml_text(item.getElementsByTagName('title')[0])
+        filename = helpers.get_xml_text(item.getElementsByTagName('title')[0])
 
         quality = Quality.nameQuality(filename)
         
@@ -79,7 +82,7 @@ class KATProvider(generic.TorrentProvider):
         if not show:
             return params
         
-        params['show_name'] = sanitizeSceneName(show.name).replace('.',' ').encode('utf-8')
+        params['show_name'] = helpers.sanitizeSceneName(show.name).replace('.',' ').encode('utf-8')
           
         if season != None:
             params['season'] = season
@@ -93,7 +96,7 @@ class KATProvider(generic.TorrentProvider):
         if not ep_obj:
             return params
                    
-        params['show_name'] = sanitizeSceneName(ep_obj.show.name).replace('.',' ').encode('utf-8')
+        params['show_name'] = helpers.sanitizeSceneName(ep_obj.show.name).replace('.',' ').encode('utf-8')
         
         if ep_obj.show.air_by_date:
             params['date'] = str(ep_obj.airdate)
@@ -104,6 +107,64 @@ class KATProvider(generic.TorrentProvider):
         logger.log(u"KAT _get_episode_search_strings for %s is returning %s" % (repr(ep_obj), repr(params)), logger.DEBUG)
     
         return [params]
+    
+    def getURL(self, url, headers=None):
+        """
+        Overriding here to capture a 404 (which literally means episode-not-found in KAT).
+        """
+
+        if not headers:
+            headers = []
+
+        opener = urllib2.build_opener()
+        opener.addheaders = [('User-Agent', USER_AGENT), ('Accept-Encoding', 'gzip,deflate')]
+        for cur_header in headers:
+            opener.addheaders.append(cur_header)
+
+        try:
+            usock = opener.open(url)
+            url = usock.geturl()
+            encoding = usock.info().get("Content-Encoding")
+    
+            if encoding in ('gzip', 'x-gzip', 'deflate'):
+                content = usock.read()
+                if encoding == 'deflate':
+                    data = StringIO.StringIO(zlib.decompress(content))
+                else:
+                    data = gzip.GzipFile(fileobj=StringIO.StringIO(content))
+                result = data.read()
+    
+            else:
+                result = usock.read()
+    
+            usock.close()
+            
+            return result
+    
+        except urllib2.HTTPError, e:
+            if e.code == 404:
+                # for a 404, we fake an empty result
+                return '<?xml version="1.0" encoding="utf-8"?><rss version="2.0"><channel></channel></rss>'
+            
+            logger.log(u"HTTP error " + str(e.code) + " while loading URL " + url, logger.ERROR)
+            return None
+        except urllib2.URLError, e:
+            logger.log(u"URL error " + str(e.reason) + " while loading URL " + url, logger.ERROR)
+            return None
+        except BadStatusLine:
+            logger.log(u"BadStatusLine error while loading URL " + url, logger.ERROR)
+            return None
+        except socket.timeout:
+            logger.log(u"Timed out while loading URL " + url, logger.ERROR)
+            return None
+        except ValueError:
+            logger.log(u"Unknown error while loading URL " + url, logger.ERROR)
+            return None
+        except Exception:
+            logger.log(u"Unknown exception while loading URL " + url + ": " + traceback.format_exc(), logger.ERROR)
+            return None
+
+        
 
     def _doSearch(self, search_params, show=None):
     
@@ -171,7 +232,7 @@ class KATProvider(generic.TorrentProvider):
     def _get_title_and_url(self, item):
         #(title, url) = generic.TorrentProvider._get_title_and_url(self, item)
 
-        title = get_xml_text(item.getElementsByTagName('title')[0])
+        title = helpers.get_xml_text(item.getElementsByTagName('title')[0])
         url = item.getElementsByTagName('enclosure')[0].getAttribute('url').replace('&amp;','&')
 
         return (title, url)
