@@ -159,4 +159,62 @@ $(document).ready(function(){
          });
     }
 
+    function setEpisodeSceneNumbering(forSeason, forEpisode, sceneSeason, sceneEpisode) {
+    	var sbRoot = $('#sbRoot').val();
+    	var showId = $('#showID').val();
+    	
+    	if (sceneSeason === '' || sceneSeason === null) sceneSeason = forSeason;
+    	if (sceneEpisode === '' || sceneEpisode === null) sceneEpisode = forEpisode;
+    	
+    	$.getJSON(sbRoot + '/home/setEpisodeSceneNumbering', 
+			{ 
+    			'show': showId,
+    			'forSeason': forSeason, 
+    			'forEpisode': forEpisode, 
+    			'sceneSeason': sceneSeason, 
+    			'sceneEpisode': sceneEpisode
+			}, 
+	    	function(data){
+	            if (!data.success) {
+	            	//	if the update fails, then we need to restore the values sent
+	            	//	back to us.
+	            	if (typeof (data.sceneSeason) != 'undefined') {
+	            		$('#sceneSeason_' + showId + '_' + forSeason +'_' + forEpisode).val(data.sceneSeason);
+	            	}
+	            	
+	            	if (typeof (data.sceneEpisode) != 'undefined') {
+	            		$('#sceneEpisode_' + showId + '_' + forSeason +'_' + forEpisode).val(data.sceneEpisode);
+	            	}
+	            	
+	            	if (data.errorMessage) {
+	            		alert(data.errorMessage);
+	            	}
+	            }
+	        }
+    	);
+    }
+    
+    $('.sceneSeason').change(function() {
+    	//	Strip non-numeric characters
+    	$(this).val($(this).val().replace(/[^0-9]*/g,''));
+    	var forSeason = $(this).attr('data-for-season');
+    	var forEpisode = $(this).attr('data-for-episode');
+    	var showId = $('#showID').val();
+    	
+    	var sceneEpisode = $('#sceneEpisode_' + showId + '_' + forSeason +'_' + forEpisode).val();
+    	
+    	setEpisodeSceneNumbering(forSeason, forEpisode, $(this).val(), sceneEpisode);
+    });
+    
+    $('.sceneEpisode').change(function() {
+    	//	Strip non-numeric characters
+    	$(this).val($(this).val().replace(/[^0-9]*/g,''));
+    	var forSeason = $(this).attr('data-for-season');
+    	var forEpisode = $(this).attr('data-for-episode');
+    	var showId = $('#showID').val();
+    	
+    	var sceneSeason = $('#sceneSeason_' + showId + '_' + forSeason +'_' + forEpisode).val();
+    	
+    	setEpisodeSceneNumbering(forSeason, forEpisode, sceneSeason, $(this).val());
+    });
 });

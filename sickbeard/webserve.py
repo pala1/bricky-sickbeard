@@ -26,6 +26,7 @@ import re
 import threading
 import datetime
 import random
+import pprint
 
 from Cheetah.Template import Template
 import cherrypy.lib
@@ -48,6 +49,7 @@ from sickbeard.exceptions import ex
 from sickbeard.webapi import Api
 from sickbeard.scene_exceptions import get_scene_exceptions
 from sickbeard.custom_exceptions import get_custom_exceptions, set_custom_exceptions
+from sickbeard.scene_numbering import get_scene_numbering, set_scene_numbering, get_scene_numbering_for_show
 
 from lib.tvdb_api import tvdb_api
 
@@ -2260,7 +2262,9 @@ class Home:
         
         #t.all_scene_exceptions = list(set((get_scene_exceptions(showObj.tvdbid) or []) + (get_custom_exceptions(showObj.tvdbid) or []))) 
         t.all_scene_exceptions = get_scene_exceptions(showObj.tvdbid)
-        logger.log(u'Home.displayShow with all_scene_exceptions = ' + str(t.all_scene_exceptions) , logger.DEBUG)
+        t.scene_numbering = get_scene_numbering_for_show(showObj.tvdbid)
+        
+        logger.log(u'Home.displayShow with t = ' + pprint.pformat(vars(t)) , logger.DEBUG)
 
         return _munge(t)
 
@@ -2676,6 +2680,43 @@ class Home:
             return json.dumps({'result': statusStrings[ep_obj.status]})
 
         return json.dumps({'result': 'failure'})
+    
+    
+    @cherrypy.expose
+    def setEpisodeSceneNumbering(self, show, forSeason, forEpisode, sceneSeason=None, sceneEpisode=None):
+
+        # sanitize:
+        if sceneSeason is 'null': sceneSeason = None
+        if sceneEpisode is 'null': sceneEpisode = None
+        
+        result = { 
+            'success': True,
+            'forSeason': forSeason,
+            'forEpisode': forEpisode,
+        }
+        
+        # retrieve the episode object and fail if we can't get one 
+        ep_obj = _getEpisode(show, forSeason, forEpisode)
+        if isinstance(ep_obj, str):
+            result['success'] = False
+            result['errorMessage'] = ep_obj
+            
+            # since we failed, we set whatever value they tried to set back to 'blank'
+            if sceneSeason is not None: result['sceneSeason'] = ''
+            if sceneEpisode is not None: result['sceneEpisode'] = ''
+        else:
+            logger.log(u"setEpisodeSceneNumbering for %s from %sx%s to %sx%s" % 
+                       (show, forSeason, forEpisode, sceneSeason, sceneEpisode), logger.DEBUG)
+            logger.log(u'episode is' + pprint.pformat(vars(ep_obj)), logger.DEBUG)
+            
+            forSeason = int(forSeason)
+            forEpisode = int(forEpisode)
+            if sceneSeason is not None: sceneSeason = int(sceneSeason)
+            if sceneSeason is not None: sceneEpisode = int(sceneEpisode)
+            
+            set_scene_numbering(show, forSeason, forEpisode, sceneSeason, sceneEpisode)
+
+        return json.dumps(result)
 
 class UI:
     
