@@ -31,6 +31,20 @@ def get_scene_numbering(tvdb_id, season, episode):
     else:
         return (season, episode)
     
+def get_tvdb_numbering(tvdb_id, sceneSeason, sceneEpisode):
+    """
+    Returns a tuple, (season, episode) with the tvdb numbering for (sceneSeason, sceneEpisode)
+    (this works like the reverse of get_scene_numbering)
+    """
+    _check_for_schema()
+    myDB = db.DBConnection()
+        
+    rows = myDB.select("SELECT season, episode FROM scene_numbering WHERE tvdb_id = ? and scene_season = ? and scene_episode = ?", [tvdb_id, sceneSeason, sceneEpisode])
+    if rows:
+        return (int(rows[0]["season"]), int(rows[0]["episode"]))
+    else:
+        return (sceneSeason, sceneEpisode)
+    
 def get_scene_numbering_for_show(tvdb_id):
     """
     Returns a dict of (season, episode) : (sceneSeason, sceneEpisode) mappings

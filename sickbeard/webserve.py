@@ -2707,12 +2707,12 @@ class Home:
         else:
             logger.log(u"setEpisodeSceneNumbering for %s from %sx%s to %sx%s" % 
                        (show, forSeason, forEpisode, sceneSeason, sceneEpisode), logger.DEBUG)
-            logger.log(u'episode is' + pprint.pformat(vars(ep_obj)), logger.DEBUG)
+            #logger.log(u'episode is' + pprint.pformat(vars(ep_obj)), logger.DEBUG)
             
             forSeason = int(forSeason)
             forEpisode = int(forEpisode)
             if sceneSeason is not None: sceneSeason = int(sceneSeason)
-            if sceneSeason is not None: sceneEpisode = int(sceneEpisode)
+            if sceneEpisode is not None: sceneEpisode = int(sceneEpisode)
             
             set_scene_numbering(show, forSeason, forEpisode, sceneSeason, sceneEpisode)
 

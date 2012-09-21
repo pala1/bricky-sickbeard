@@ -175,7 +175,20 @@ $(document).ready(function(){
     			'sceneEpisode': sceneEpisode
 			}, 
 	    	function(data){
-	            if (!data.success) {
+	            if (data.success) 
+	            {
+	            	//  if either the season or episode is now blank,
+	            	//	we copy the correct values into them
+	            	if ($('#sceneSeason_' + showId + '_' + forSeason +'_' + forEpisode).val() == '') {
+	            		$('#sceneSeason_' + showId + '_' + forSeason +'_' + forEpisode).val(forSeason);
+	            	}
+	            	
+	            	if ($('#sceneEpisode_' + showId + '_' + forSeason +'_' + forEpisode).val() == '') {
+	            		$('#sceneEpisode_' + showId + '_' + forSeason +'_' + forEpisode).val(forEpisode);
+	            	}
+	            }
+	            else
+	            {
 	            	//	if the update fails, then we need to restore the values sent
 	            	//	back to us.
 	            	if (typeof (data.sceneSeason) != 'undefined') {

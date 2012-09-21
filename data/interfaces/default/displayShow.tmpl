@@ -164,19 +164,19 @@ Change selected episodes to
 			#if (epResult["season"], epResult["episode"]) in $scene_numbering:
 				#set ($scSeas, $scEpis) = $scene_numbering[(epResult["season"], epResult["episode"])]
 			#else
-				#set ($scSeas, $scEpis) = ('', '') 
+				#set ($scSeas, $scEpis) = (epResult["season"], epResult["episode"]) 
 			#end if
 			<nobr>
-	    	<input type="text" placeholder="$epResult["season"]" size="2"
+	    	<input type="text" placeholder="$epResult["season"]" size="2" maxlength="3"
 	    		class="sceneSeason" data-for-season="$epResult["season"]" data-for-episode="$epResult["episode"]"
 	    		id="sceneSeason_$show.tvdbid<%="_"+str(epResult["season"])+"_"+str(epResult["episode"])%>"
-	    		title="Enter a value here if scene numbering differs from tvdb episode numbering"
+	    		title="Change the value here if scene numbering differs from tvdb episode numbering"
 	    		value="$scSeas"
 	    		style="padding: 0; text-align: right; max-width: 20px;" 
-	    	/>x<input type="text" placeholder="$epResult["episode"]" size="2"
+	    	/>x<input type="text" placeholder="$epResult["episode"]" size="2" maxlength="3"
 	    		class="sceneEpisode" data-for-season="$epResult["season"]" data-for-episode="$epResult["episode"]"
 	    		id="sceneEpisode_$show.tvdbid<%="_"+str(epResult["season"])+"_"+str(epResult["episode"])%>"
-	    		title="Enter a value here if scene numbering differs from tvdb episode numbering"
+	    		title="Change the value here if scene numbering differs from tvdb episode numbering"
 	    		value="$scEpis"
 	    		style="padding: 0; text-align: left; max-width: 20px;" />
 	    	</nobr>
