@@ -2264,7 +2264,7 @@ class Home:
         t.all_scene_exceptions = get_scene_exceptions(showObj.tvdbid)
         t.scene_numbering = get_scene_numbering_for_show(showObj.tvdbid)
         
-        logger.log(u'Home.displayShow with t = ' + pprint.pformat(vars(t)) , logger.DEBUG)
+        #logger.log(u'Home.displayShow with t = ' + pprint.pformat(vars(t)) , logger.DEBUG)
 
         return _munge(t)
 

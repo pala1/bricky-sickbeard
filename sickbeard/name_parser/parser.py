@@ -26,6 +26,8 @@ import sickbeard
 
 from sickbeard import logger
 
+from lib.tvdb_api import tvdb_api, tvdb_exceptions
+
 class NameParser(object):
     def __init__(self, file_name=True):
 
@@ -181,12 +183,13 @@ class NameParser(object):
 
         return int(number)
 
-    def parse(self, name):
+    def parse(self, name, fix_scene_numbering=True):
         
         name = self._unicodify(name)
         
         cached = name_parser_cache.get(name)
         if cached:
+            if fix_scene_numbering: cached.fix_scene_numbering()
             return cached
 
         # break it into parts if there are any (dirname, file name, extension)
@@ -237,8 +240,67 @@ class NameParser(object):
             raise InvalidNameException("Unable to parse "+name.encode(sickbeard.SYS_ENCODING))
 
         name_parser_cache.add(name, final_result)
+        
+        if fix_scene_numbering: final_result.fix_scene_numbering()
         # return it
         return final_result
+    
+    @classmethod
+    def series_name_to_tvdb_id(cls, series_name, check_scene_exceptions=True, check_database=True, check_tvdb=False):
+        """
+        Given a series name, return it's tvdbd_id.
+        Returns None if not found.
+        
+        This is mostly robbed from postProcessor._analyze_name
+        """
+    
+        # do a scene reverse-lookup to get a list of all possible names
+        name_list = sickbeard.show_name_helpers.sceneToNormalShowNames(series_name)
+        
+        # for each possible interpretation of that scene name
+        if check_scene_exceptions:
+            for cur_name in name_list:
+                logger.log(u"Checking scene exceptions for a match on "+cur_name, logger.DEBUG)
+                scene_id = sickbeard.scene_exceptions.get_scene_exception_by_name(cur_name)
+                if scene_id: return scene_id
+
+        # see if we can find the name directly in the DB, if so use it
+        if check_database:
+            for cur_name in name_list:
+                logger.log(u"Looking up "+cur_name+u" in the DB", logger.DEBUG)
+                db_result = sickbeard.helpers.searchDBForShow(cur_name)
+                if db_result: return db_result[0]
+        
+        # see if we can find the name with a TVDB lookup
+        if check_tvdb:
+            for cur_name in name_list:
+                try:
+                    t = tvdb_api.Tvdb(custom_ui=sickbeard.classes.ShowListUI, **sickbeard.TVDB_API_PARMS)
+        
+                    logger.log(u"Looking up name "+cur_name+u" on TVDB", logger.DEBUG)
+                    showObj = t[cur_name]
+                except (tvdb_exceptions.tvdb_exception):
+                    # if none found, search on all languages
+                    try:
+                        # There's gotta be a better way of doing this but we don't wanna
+                        # change the language value elsewhere
+                        ltvdb_api_parms = sickbeard.TVDB_API_PARMS.copy()
+    
+                        ltvdb_api_parms['search_all_languages'] = True
+                        t = tvdb_api.Tvdb(custom_ui=sickbeard.classes.ShowListUI, **ltvdb_api_parms)
+    
+                        logger.log(u"Looking up name "+cur_name+u" in all languages on TVDB", logger.DEBUG)
+                        showObj = t[cur_name]
+                    except (tvdb_exceptions.tvdb_exception, IOError):
+                        pass
+    
+                    continue
+                except (IOError):
+                    continue
+                
+                return showObj["id"]
+            
+        return None
 
 class ParseResult(object):
     def __init__(self,
@@ -314,6 +376,44 @@ class ParseResult(object):
             return True
         return False
     air_by_date = property(_is_air_by_date)
+    
+    def fix_scene_numbering(self):
+        """
+        The changes the parsed result (which is assumed to be scene numbering) to
+        tvdb numbering, if necessary.
+        """
+        if self.air_by_date: return # scene numbering does not apply to air-by-date
+        if self.season_number == None: return # can't work without a season
+        if len(self.episode_numbers) == 0: return # need at least one episode
+        
+        tvdb_id = NameParser.series_name_to_tvdb_id(self.series_name, True, True, False)
+        
+        new_episode_numbers = []
+        new_season_numbers = []
+        for epNo in self.episode_numbers:
+            (s, e) = sickbeard.scene_numbering.get_tvdb_numbering(tvdb_id, self.season_number, epNo)
+            new_episode_numbers.append(e)
+            new_season_numbers.append(s)
+            
+        # need to do a quick sanity check here.  It's possible that we now have episodes
+        # from more than one season (by tvdb numbering), and this is just too much
+        # for sickbeard, so we'd need to flag it.
+        new_season_numbers = list(set(new_season_numbers)) # remove duplicates
+        if len(new_season_numbers) > 1:
+            raise InvalidNameException("Scene numbering results episodes from "
+                                       "seasons %s, (i.e. more than one) and "
+                                       "sickbeard does not support this.  "
+                                       "Sorry." % (str(new_season_numbers)))
+            
+        # I guess it's possible that we'd have duplicate episodes too, so lets
+        # eliminate them
+        new_episode_numbers = list(set(new_episode_numbers))
+        new_episode_numbers.sort()
+        
+        self.episode_numbers = new_episode_numbers
+        self.season_number = new_season_numbers[0]
+        
+        
 
 class NameParserCache(object):
     #TODO: check if the fifo list can beskiped and only use one dict

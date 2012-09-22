@@ -48,7 +48,7 @@ def get_tvdb_numbering(tvdb_id, sceneSeason, sceneEpisode):
 def get_scene_numbering_for_show(tvdb_id):
     """
     Returns a dict of (season, episode) : (sceneSeason, sceneEpisode) mappings
-    for an entire show.  Both the keys and value of the dict are tuples.
+    for an entire show.  Both the keys and values of the dict are tuples.
     Will be empty if there are no scene numbers set
     """
     _check_for_schema()
