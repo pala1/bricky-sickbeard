@@ -109,7 +109,7 @@ def splitResult(result):
     # parse the season ep name
     try:
         np = NameParser(False)
-        parse_result = np.parse(result.name)
+        parse_result = np.parse(result.name, True)
     except InvalidNameException:
         logger.log(u"Unable to parse the filename "+result.name+" into a valid episode", logger.WARNING)
         return False
@@ -128,7 +128,7 @@ def splitResult(result):
         # parse the name
         try:
             np = NameParser(False)
-            parse_result = np.parse(newNZB)
+            parse_result = np.parse(newNZB, True)
         except InvalidNameException:
             logger.log(u"Unable to parse the filename "+newNZB+" into a valid episode", logger.WARNING)
             return False

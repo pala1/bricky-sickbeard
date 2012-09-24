@@ -183,7 +183,7 @@ class NameParser(object):
 
         return int(number)
 
-    def parse(self, name, fix_scene_numbering=True):
+    def parse(self, name, fix_scene_numbering=False):
         
         name = self._unicodify(name)
         

@@ -364,7 +364,7 @@ class PostProcessor(object):
     
         # parse the name to break it into show name, season, and episode
         np = NameParser(file)
-        parse_result = np.parse(name)
+        parse_result = np.parse(name, True)
         self._log("Parsed "+name+" into "+str(parse_result).decode('utf-8'), logger.DEBUG)
 
         if parse_result.air_by_date:
