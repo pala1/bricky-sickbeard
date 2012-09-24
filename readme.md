@@ -12,7 +12,7 @@ In addition to the libraries/projects used by [Sick Beard](https://github.com/mi
 
 * [Beautiful Soup](http://www.crummy.com/software/BeautifulSoup/)
 
-See [here](http://brickybox.com/2012/07/11/sickbeard-support-for-showrss) for some further info.  
+See [here](http://brickybox.com/2012/09/24/sickbeard-fork-feature-summary) for some further info.  
 
 
 * * *
