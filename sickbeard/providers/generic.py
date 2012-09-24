@@ -23,6 +23,7 @@ import os
 import sys
 import re
 import urllib2
+import copy
 
 import sickbeard
 
@@ -235,8 +236,12 @@ class GenericProvider:
             return results
 
         itemList = []
+        
+        # create a copy of the episode, using scene numbering
+        episode_scene = copy.copy(episode)
+        episode_scene.convertToSceneNumbering()
 
-        for cur_search_string in self._get_episode_search_strings(episode):
+        for cur_search_string in self._get_episode_search_strings(episode_scene):
             itemList += self._doSearch(cur_search_string, show=episode.show)
 
         for item in itemList:

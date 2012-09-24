@@ -1725,3 +1725,13 @@ class TVEpisode(object):
             self.saveToDB()
             for relEp in self.relatedEps:
                 relEp.saveToDB()
+                
+    def convertToSceneNumbering(self):
+        if self.show.air_by_date: return
+        
+        if self.season is None: return # can't work without a season
+        if self.episode is None: return # need to know the episode
+        
+        tvdb_id = self.show.tvdbid
+        
+        (self.season, self.episode) = sickbeard.scene_numbering.get_scene_numbering(tvdb_id, self.season, self.episode)
