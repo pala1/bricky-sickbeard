@@ -108,6 +108,7 @@ class WindowsUpdateManager(UpdateManager):
 
     def __init__(self):
         self._cur_version = None
+        self._cur_commit_hash = None
         self._newest_version = None
 
         self.gc_url = 'http://code.google.com/p/sickbeard/downloads/list'
@@ -446,7 +447,7 @@ class SourceUpdateManager(GitUpdateManager):
         Downloads the latest source tarball from github and installs it over the existing version.
         """
 
-        tar_download_url = 'https://github.com/midgetspy/Sick-Beard/tarball/'+version.SICKBEARD_VERSION
+        tar_download_url = 'https://github.com/bricky/Sick-Beard/tarball/'+version.SICKBEARD_VERSION
         sb_update_dir = os.path.join(sickbeard.PROG_DIR, 'sb-update')
         version_path = os.path.join(sickbeard.PROG_DIR, 'version.txt')
 
