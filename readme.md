@@ -6,7 +6,7 @@ Specifically it includes
 * a UI for adding custom (local) scene exception names,
 * use of twitter rss as a fallback when ezrss fails.
 * Support for the [Kickass Torrents](http://kat.ph/) torrent site (including backlog).  Searches verified torrents only.
-* Support for scene numbering at the episode level.  If scene numbering does not agree with tvdb numbering (as is often the case) the show will still be downloaded an saved correctly.
+* Support for scene numbering at the episode level.  If scene numbering does not agree with tvdb numbering (as is often the case) the show will still be downloaded and saved correctly.
 
 In addition to the libraries/projects used by [Sick Beard](https://github.com/midgetspy/Sick-Beard), this fork also leverages from the following:  
 
