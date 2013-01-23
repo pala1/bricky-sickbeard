@@ -202,7 +202,7 @@ class EZRSSCache(tvcache.TVCache):
         if (data == None):
             # getURL returns None when it fails.  Normally we'd give up, 
             # but here we can fall back on the twitter feed as follows:
-            twitter_url = 'https://twitter.com/statuses/user_timeline/eztv_it.rss'
+            twitter_url = 'http://search.twitter.com/search.rss?q=from%3Aeztv_it'
             logger.log(u"EZRSS url %s failed, falling back on %s "%(url, twitter_url), logger.MESSAGE)
             data = self.provider.getURL(twitter_url)
 
