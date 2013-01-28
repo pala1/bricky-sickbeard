@@ -19,6 +19,7 @@
 import urllib
 import re
 from xml.dom.minidom import parseString
+from datetime import datetime
 
 import sickbeard
 import generic
@@ -199,10 +200,51 @@ class EZRSSCache(tvcache.TVCache):
 
         data = self.provider.getURL(url)
         
+        use_twitter_fallback = False
         if (data == None):
+            use_twitter_fallback = True
+        else:
+            # Sometimes ezrss appears to be working, but returns really old data.
+            # when this happens it's best to consider it broken and fall back
+            # to twitter.
+            use_twitter_fallback  = False
+            
+            # this is a bit ugly, but I think it's the best way: we need to parse the
+            # result and pull out the first date
+            try:
+                parsedXML = parseString(data)
+                
+                if parsedXML.documentElement.tagName != 'rss':
+                    logger.log(u"Resulting XML from ezrss isn't RSS, not parsing it", logger.ERROR)
+                    use_twitter_fallback = True
+                else: 
+                    items = parsedXML.getElementsByTagName('item')
+                    
+                    if len(items) > 0:
+                        item = items[0]
+                        pubDate = get_xml_text(item.getElementsByTagName('pubDate')[0])
+                        
+                        # pubDate has a timezone, but it makes things much easier if
+                        # we ignore it (and we don't need that level of accuracy anyway)
+                        pub_date_pieces = pubDate.split(" ")[:-1]
+                        p_datetime = datetime.strptime(" ".join(pub_date_pieces), '%a, %d %b %Y %H:%M:%S')
+                        p_delta = datetime.now() - p_datetime
+                        if p_delta.days > 7:
+                            logger.log(u"Last entry in ezrss feed (after early parse) is %d days old - assuming feed is broken"%(p_delta.days), logger.MESSAGE)
+                            use_twitter_fallback = True
+                    else:
+                        logger.log(u"Feed contents from ezrss are rss (during early parse) but are empty, assuming success.", logger.DEBUG)
+                        
+            except Exception, e:
+                logger.log(u"Error during early parse of ezrss feed: "+ex(e), logger.ERROR)
+                logger.log(u"Feed contents: "+repr(data), logger.DEBUG)
+                use_twitter_fallback = True
+            
+        if use_twitter_fallback:
             # getURL returns None when it fails.  Normally we'd give up, 
             # but here we can fall back on the twitter feed as follows:
-            twitter_url = 'http://search.twitter.com/search.rss?q=from%3Aeztv_it'
+            twitter_url = 'http://search.twitter.com/search.rss?rpp=30&q=from%3Aeztv_it' 
+            # rpp = results per page, we use 30 b/c that's what ezrss does (when it works)
             logger.log(u"EZRSS url %s failed, falling back on %s "%(url, twitter_url), logger.MESSAGE)
             data = self.provider.getURL(twitter_url)
 
