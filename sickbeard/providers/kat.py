@@ -289,6 +289,19 @@ class KATCache(tvcache.TVCache):
         if not title or not url:
             logger.log(u"The XML returned from the KAT RSS feed is incomplete, this result is unusable", logger.ERROR)
             return
+        
+#        if url and url.startswith('magnet:'):
+#            torrent_url = self.provider.magnetToTorrent(url)
+#            if torrent_url:
+#                logger.log(u"Changed magnet %s to %s" % (url, torrent_url), logger.DEBUG)
+#                url = torrent_url
+#            else:
+#                logger.log(u"Failed to handle magnet url %s, skipping..." % url, logger.DEBUG)
+#                return
+            
+        if url and self.provider.urlIsBlacklisted(url):
+            logger.log(u"url %s is blacklisted, skipping..." % url, logger.DEBUG)
+            return
 
         logger.log(u"Adding item from RSS to cache: "+title, logger.DEBUG)
 

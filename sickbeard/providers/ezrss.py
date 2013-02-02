@@ -41,6 +41,12 @@ class EZRSSProvider(generic.TorrentProvider):
         self.cache = EZRSSCache(self)
 
         self.url = 'https://www.ezrss.it/'
+        
+        # These are backup feeds, tried in order if the main feed fails.
+        # (these just provide "latest", no backlog)
+        self.backup_feeds = ['http://search.twitter.com/search.rss?rpp=30&q=from%3Aeztv_it',
+                             'https://rss.thepiratebay.se/user/d17c6a45441ce0bc0c057f19057f95e1',
+                             'http://feeds.feedburner.com/eztv-rss-atom-feeds?format=xml&max-results=30' ]
 
     def isEnabled(self):
         return sickbeard.EZRSS
@@ -163,14 +169,31 @@ class EZRSSProvider(generic.TorrentProvider):
             logger.log(u"Extracted the name %s and url %s from the twitter link"%(title, url), logger.DEBUG)
         else:
             # this feed came from ezrss
-            torrent_node = item.getElementsByTagName('torrent')[0]
-            filename_node = torrent_node.getElementsByTagName('fileName')[0]
-            filename = get_xml_text(filename_node)
-        
-            new_title = self._extract_name_from_filename(filename)
-            if new_title:
-                title = new_title
-                logger.log(u"Extracted the name "+title+" from the torrent link", logger.DEBUG)
+            try:
+                torrent_node = item.getElementsByTagName('torrent')[0]
+                filename_node = torrent_node.getElementsByTagName('fileName')[0]
+                filename = get_xml_text(filename_node)
+            
+                new_title = self._extract_name_from_filename(filename)
+                if new_title:
+                    title = new_title
+                    logger.log(u"Extracted the name "+title+" from the torrent link", logger.DEBUG)
+            except IndexError:
+                # we'll get an IndexError above when there's no 'torrent' node,
+                # which likely means that this isn't in the special ezrss format.
+                # So assume we're working with with a standard rss feed.
+                logger.log(u"IndexError while parsing the ezrss feed, maybe it's just standard RSS? Trying that ...", logger.DEBUG)
+                (title, url) = generic.GenericProvider._get_title_and_url(self, item)
+                
+        # feedburner adds "[eztv] " to the start of all titles, so trim it off
+        if title and title[:7] == "[eztv] ":
+            title = title[7:]
+            logger.log(u"Trimmed [eztv] from title to get %s" % title, logger.DEBUG)
+            
+        # ditto VTV:
+        if title and title[:6] == "[VTV] ":
+            title = title[6:]
+            logger.log(u"Trimmed [VTV] from title to get %s" % title, logger.DEBUG)
 
         return (title, url)
 
@@ -194,29 +217,19 @@ class EZRSSCache(tvcache.TVCache):
 
 
     def _getRSSData(self):
-        url = self.provider.url + 'feed/'
-
-        logger.log(u"EZRSS cache update URL: "+ url, logger.DEBUG)
-
-        data = self.provider.getURL(url)
         
-        use_twitter_fallback = False
-        if (data == None):
-            use_twitter_fallback = True
-        else:
-            # Sometimes ezrss appears to be working, but returns really old data.
-            # when this happens it's best to consider it broken and fall back
-            # to twitter.
-            use_twitter_fallback  = False
-            
-            # this is a bit ugly, but I think it's the best way: we need to parse the
-            # result and pull out the first date
+        def _feed_is_valid(feed):
+            #logger.log(u"Checking feed: " + repr(feed), logger.DEBUG)
             try:
-                parsedXML = parseString(data)
+                if feed is None:
+                    logger.log(u"Feed result is empty!", logger.ERROR)
+                    return False
+                
+                parsedXML = parseString(feed)
                 
                 if parsedXML.documentElement.tagName != 'rss':
-                    logger.log(u"Resulting XML from ezrss isn't RSS, not parsing it", logger.ERROR)
-                    use_twitter_fallback = True
+                    logger.log(u"Resulting XML isn't RSS, not parsing it", logger.ERROR)
+                    return False
                 else: 
                     items = parsedXML.getElementsByTagName('item')
                     
@@ -229,24 +242,38 @@ class EZRSSCache(tvcache.TVCache):
                         pub_date_pieces = pubDate.split(" ")[:-1]
                         p_datetime = datetime.strptime(" ".join(pub_date_pieces), '%a, %d %b %Y %H:%M:%S')
                         p_delta = datetime.now() - p_datetime
-                        if p_delta.days > 7:
-                            logger.log(u"Last entry in ezrss feed (after early parse) is %d days old - assuming feed is broken"%(p_delta.days), logger.MESSAGE)
-                            use_twitter_fallback = True
+                        if p_delta.days > 3:
+                            logger.log(u"Last entry in feed (after early parse) is %d days old - assuming feed is broken"%(p_delta.days), logger.MESSAGE)
+                            return False
+                        else:
+                            return True
                     else:
-                        logger.log(u"Feed contents from ezrss are rss (during early parse) but are empty, assuming success.", logger.DEBUG)
+                        logger.log(u"Feed contents are rss (during early parse) but are empty, assuming success.", logger.DEBUG)
+                        return True
                         
             except Exception, e:
-                logger.log(u"Error during early parse of ezrss feed: "+ex(e), logger.ERROR)
-                logger.log(u"Feed contents: "+repr(data), logger.DEBUG)
-                use_twitter_fallback = True
+                logger.log(u"Error during early parse of feed: "+ex(e), logger.ERROR)
+                logger.log(u"Feed contents: "+repr(feed), logger.DEBUG)
+                return False
+        
+        
+        
+        url = self.provider.url + 'feed/'
+        
+        all_urls = [url] + self.provider.backup_feeds
+        for try_url in all_urls:
+            logger.log(u"Trying EZRSS URL: " + try_url, logger.DEBUG)
+            data = self.provider.getURL(try_url)
             
-        if use_twitter_fallback:
-            # getURL returns None when it fails.  Normally we'd give up, 
-            # but here we can fall back on the twitter feed as follows:
-            twitter_url = 'http://search.twitter.com/search.rss?rpp=30&q=from%3Aeztv_it' 
-            # rpp = results per page, we use 30 b/c that's what ezrss does (when it works)
-            logger.log(u"EZRSS url %s failed, falling back on %s "%(url, twitter_url), logger.MESSAGE)
-            data = self.provider.getURL(twitter_url)
+            if _feed_is_valid(data):
+                logger.log(u"Success with url: " + try_url, logger.DEBUG)
+                break;
+            else:
+                logger.log(u"EZRSS url %s failed" % (try_url), logger.MESSAGE)
+    
+        else:
+            logger.log(u"All EZRSS urls (including backups) have failed.  Sorry.", logger.MESSAGE)
+            data = None
 
         return data
 
@@ -256,6 +283,19 @@ class EZRSSCache(tvcache.TVCache):
 
         if not title or not url:
             logger.log(u"The XML returned from the EZRSS RSS feed is incomplete, this result is unusable", logger.ERROR)
+            return
+        
+#        if url and url.startswith('magnet:'):
+#            torrent_url = self.provider.magnetToTorrent(url)
+#            if torrent_url:
+#                logger.log(u"Changed magnet %s to %s" % (url, torrent_url), logger.DEBUG)
+#                url = torrent_url
+#            else:
+#                logger.log(u"Failed to handle magnet url %s, skipping..." % url, logger.DEBUG)
+#                return
+            
+        if url and self.provider.urlIsBlacklisted(url):
+            logger.log(u"url %s is blacklisted, skipping..." % url, logger.DEBUG)
             return
 
         logger.log(u"Adding item from RSS to cache: "+title, logger.DEBUG)
