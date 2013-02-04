@@ -4,9 +4,10 @@ This is a fork of the incredible [Sick Beard](https://github.com/midgetspy/Sick-
 Specifically it includes 
 * Support for the [ShowRSS](http://showrss.karmorra.info/) torrent feed (with some limited backlog support), 
 * a UI for adding custom (local) scene exception names,
-* use of twitter rss as a fallback when ezrss fails.
+* use of twitter, tpb, and feedburner rss feeds as fallbacks when ezrss fails.
 * Support for the [Kickass Torrents](http://kat.ph/) torrent site (including backlog).  Searches verified torrents only.
 * Support for scene numbering at the episode level.  If scene numbering does not agree with tvdb numbering (as is often the case) the show will still be downloaded and saved correctly.
+* support for magnet links
 
 In addition to the libraries/projects used by [Sick Beard](https://github.com/midgetspy/Sick-Beard), this fork also leverages from the following:  
 
