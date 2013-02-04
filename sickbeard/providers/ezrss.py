@@ -248,8 +248,8 @@ class EZRSSCache(tvcache.TVCache):
                         else:
                             return True
                     else:
-                        logger.log(u"Feed contents are rss (during early parse) but are empty, assuming success.", logger.DEBUG)
-                        return True
+                        logger.log(u"Feed contents are rss (during early parse) but are empty, assuming failure.", logger.MESSAGE)
+                        return False
                         
             except Exception, e:
                 logger.log(u"Error during early parse of feed: "+ex(e), logger.ERROR)
