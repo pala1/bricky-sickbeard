@@ -184,5 +184,17 @@ ep_regexes = [
                -(?P<release_group>[^- ]+))?)?$              # Group
                '''
                ),
+              
+              ('mvgroup',
+               # BBC Lost Kingdoms of South America 3of4 Lands of Gold PDTV x264 AC3mp4-MVGroup
+               # BBC.Great.British.Railway.Journeys.Series4.03of25.Stoke-on-Trent.to.Winsford.720p.HDTV.x264.AAC.MVGroup
+               '''
+               ^(?P<series_name>.+?)[. _-]+                # Show_Name and separator
+               ((series|season)(?P<season_num>\d+)[. _-]+)? # Series4
+               (?P<ep_num>\d{1,2})of\d{1,2}                # 3of4
+               [. _-]+((?P<extra_info>.+?)                 # Source_Quality_Etc-
+               ((?<![. _-])(?<!WEB)                        # Make sure this is really the release group
+               -(?P<release_group>[^- ]+))?)?$
+               '''),
               ]
 
