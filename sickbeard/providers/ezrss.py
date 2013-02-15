@@ -44,8 +44,8 @@ class EZRSSProvider(generic.TorrentProvider):
         
         # These are backup feeds, tried in order if the main feed fails.
         # (these just provide "latest", no backlog)
-        self.backup_feeds = ['http://search.twitter.com/search.rss?rpp=30&q=from%3Aeztv_it',
-                             'https://rss.thepiratebay.se/user/d17c6a45441ce0bc0c057f19057f95e1',
+        self.backup_feeds = ['https://rss.thepiratebay.se/user/d17c6a45441ce0bc0c057f19057f95e1',
+                             'http://search.twitter.com/search.rss?rpp=30&q=from%3Aeztv_it',
                              'http://feeds.feedburner.com/eztv-rss-atom-feeds?format=xml&max-results=30' ]
 
     def isEnabled(self):
@@ -156,8 +156,12 @@ class EZRSSProvider(generic.TorrentProvider):
             # eztv_it: History Ch The Universe Season 4 08of12 Space Wars XviD AC3 [MVGroup org] - http://t.co/mGTrhB4a
             #
             # Start by splitting the (real) url from the filename
-            title, url = title.rsplit(' - http', 1)
-            url = 'http' + url
+            try:
+                title, url = title.rsplit(' - http', 1)
+                url = 'http' + url
+            except ValueError:
+                logger.log(u"Twitter message '%s' could not be split on a http boundary, there'll be no url here, sorry" % (title), logger.MESSAGE)
+                url = None
             
             # Then strip off the leading eztv_it:
             if title.startswith('eztv_it:'):
@@ -166,7 +170,7 @@ class EZRSSProvider(generic.TorrentProvider):
             # For safety we remove any whitespace too.
             title = title.strip()
             
-            logger.log(u"Extracted the name %s and url %s from the twitter link"%(title, url), logger.DEBUG)
+            logger.log(u"Extracted the title '%s' and url '%s' from the twitter link"%(title, url), logger.DEBUG)
         else:
             # this feed came from ezrss
             try:
