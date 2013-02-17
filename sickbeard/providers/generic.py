@@ -217,9 +217,7 @@ class GenericProvider:
     def _get_title_and_url(self, item):
         """
         Retrieves the title and URL data from the item XML node
-
         item: An xml.dom.minidom.Node representing the <item> tag of the RSS feed
-
         Returns: A tuple containing two strings representing title and URL respectively
         """
         title = helpers.get_xml_text(item.getElementsByTagName('title')[0])

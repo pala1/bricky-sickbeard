@@ -23,6 +23,7 @@ __all__ = ['ezrss',
            'btn',
            'showrss',
            'kat',
+           'dailytvtorrents',
            ]
 
 import sickbeard

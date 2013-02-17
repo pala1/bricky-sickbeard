@@ -30,7 +30,7 @@ from threading import Lock
 
 # apparently py2exe won't build these unless they're imported somewhere
 from sickbeard import providers, metadata
-from providers import ezrss, tvtorrents, btn, nzbsrus, newznab, womble, showrss, kat
+from providers import ezrss, tvtorrents, btn, nzbsrus, newznab, womble, showrss, kat, dailytvtorrents
 from sickbeard.config import CheckSection, check_setting_int, check_setting_str, ConfigMigrator
 
 from sickbeard import searchCurrent, searchBacklog, showUpdater, versionChecker, properFinder, autoPostProcesser
@@ -156,6 +156,7 @@ DEFAULT_SEARCH_FREQUENCY = 60
 EZRSS = False
 SHOWRSS = False
 KAT = False
+DAILYTVTORRENTS = False
 TVTORRENTS = False
 TVTORRENTS_DIGEST = None
 TVTORRENTS_HASH = None
@@ -319,7 +320,7 @@ def initialize(consoleLogging=True):
                 USE_PLEX, PLEX_NOTIFY_ONSNATCH, PLEX_NOTIFY_ONDOWNLOAD, PLEX_UPDATE_LIBRARY, \
                 PLEX_SERVER_HOST, PLEX_HOST, PLEX_USERNAME, PLEX_PASSWORD, \
                 showUpdateScheduler, __INITIALIZED__, LAUNCH_BROWSER, showList, loadingShowList, \
-                NZBS, NZBS_UID, NZBS_HASH, EZRSS, SHOWRSS, KAT, TVTORRENTS, TVTORRENTS_DIGEST, TVTORRENTS_HASH, BTN, BTN_API_KEY, TORRENT_DIR, USENET_RETENTION, SOCKET_TIMEOUT, \
+                NZBS, NZBS_UID, NZBS_HASH, EZRSS, SHOWRSS, KAT, DAILYTVTORRENTS, TVTORRENTS, TVTORRENTS_DIGEST, TVTORRENTS_HASH, BTN, BTN_API_KEY, TORRENT_DIR, USENET_RETENTION, SOCKET_TIMEOUT, \
                 SEARCH_FREQUENCY, DEFAULT_SEARCH_FREQUENCY, BACKLOG_SEARCH_FREQUENCY, \
                 QUALITY_DEFAULT, FLATTEN_FOLDERS_DEFAULT, STATUS_DEFAULT, \
                 GROWL_NOTIFY_ONSNATCH, GROWL_NOTIFY_ONDOWNLOAD, TWITTER_NOTIFY_ONSNATCH, TWITTER_NOTIFY_ONDOWNLOAD, \
@@ -532,6 +533,9 @@ def initialize(consoleLogging=True):
         
         CheckSection(CFG, 'KAT')
         KAT = bool(check_setting_int(CFG, 'KAT', 'kat', 0))
+        
+        CheckSection(CFG, 'DAILYTVTORRENTS')
+        DAILYTVTORRENTS = bool(check_setting_int(CFG, 'DAILYTVTORRENTS', 'dailytvtorrents', 0))
 
         CheckSection(CFG, 'TVTORRENTS')
         TVTORRENTS = bool(check_setting_int(CFG, 'TVTORRENTS', 'tvtorrents', 0))
@@ -1008,6 +1012,9 @@ def save_config():
     
     new_config['SHOWRSS'] = {}
     new_config['SHOWRSS']['showrss'] = int(SHOWRSS)
+    
+    new_config['DAILYTVTORRENTS'] = {}
+    new_config['DAILYTVTORRENTS']['dailytvtorrents'] = int(DAILYTVTORRENTS)
     
     new_config['KAT'] = {}
     new_config['KAT']['kat'] = int(KAT)

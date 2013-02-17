@@ -1105,6 +1105,8 @@ class ConfigProviders:
                 sickbeard.SHOWRSS = curEnabled
             elif curProvider == 'kat':
                 sickbeard.KAT = curEnabled
+            elif curProvider == 'dailytvtorrents':
+                sickbeard.DAILYTVTORRENTS = curEnabled
             elif curProvider in newznabProviderDict:
                 newznabProviderDict[curProvider].enabled = bool(curEnabled)
             else:

@@ -38,6 +38,7 @@ from sickbeard.exceptions import ex
 from sickbeard import tvrage
 from sickbeard import image_cache
 from sickbeard import postProcessor
+from sickbeard.scene_exceptions import get_scene_exceptions
 
 from sickbeard import encodingKludge as ek
 
@@ -927,6 +928,15 @@ class TVShow(object):
             # if it's >= maxBestQuality then it's good
             else:
                 return Overview.GOOD
+            
+    def getAlternateNames(self, includeCustomSceneExceptions=True):
+        """
+        Returns a list of scene exception show names for the show.
+        @param includeCustomSceneExceptions: (boolean)
+        @return: List
+        """
+        return get_scene_exceptions(self.tvdbid, not includeCustomSceneExceptions)
+        
 
 def dirty_setter(attr_name):
     def wrapper(self, val):

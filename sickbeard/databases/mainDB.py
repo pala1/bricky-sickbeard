@@ -138,7 +138,8 @@ class NumericProviders (AddAirdateIndex):
                 6: 'tvnzb',
                 7: 'ezrss',
                 8: 'showrss',
-                9: 'kat'}
+                9: 'kat',
+                10: 'dailytvtorrents'}
 
     def execute(self):
         self.connection.action("ALTER TABLE history RENAME TO history_old")
