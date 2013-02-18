@@ -402,8 +402,9 @@ class NZBProvider(GenericProvider):
 # They will be tried in order, so put the most reliable at the top.
 MAGNET_TO_TORRENT_URLS = ['http://torrage.com/torrent/%s.torrent',
                           'http://zoink.it/torrent/%s.torrent',
-                          'http://torrage.ws/torrent/%s.torrent',
-                        ]
+                          'http://torcache.net/torrent/%s.torrent',
+                          'http://torrage.ws/torrent/%s.torrent', 
+                         ]
 
 class TorrentProvider(GenericProvider):
 
