@@ -293,7 +293,7 @@ class DailyTvTorrentsProvider(generic.TorrentProvider):
             logger.log(u"Show %s not known to dtvt, not running search." % (search_params['show_name']), logger.WARNING)
             return []
             
-        searchURL = '%srss/show/%s?norar=yes' % (self.url, simple_show_name)
+        searchURL = '%srss/show/%s?norar=yes&items=all' % (self.url, simple_show_name)
         logger.log(u"Search string: " + searchURL, logger.DEBUG)
         data = self.getURL(searchURL)
 
@@ -329,6 +329,26 @@ class DailyTvTorrentsProvider(generic.TorrentProvider):
         url = item.getElementsByTagName('enclosure')[0].getAttribute('url').replace('&amp;','&')
 
         return (title, url)
+    
+    def getQuality(self, item):
+        """
+        Figures out the quality of the given RSS item node
+        item: An xml.dom.minidom.Node representing the <item> tag of the RSS feed
+        Returns a Quality value obtained from the node's data
+        
+        Overridden here because dtvt has its own quirky way of doing quality. 
+        """
+        (title, url) = self._get_title_and_url(item) #@UnusedVariable
+        if title:
+            if title.endswith(' [HD]'):
+                return Quality.SDTV
+            elif title.endswith(' [720]'):
+                return Quality.HDTV
+            elif title.endswith(' [1080]'):
+                return Quality.FULLHDBLURAY # best choice available I think
+            
+        quality = Quality.nameQuality(title)
+        return quality
 
 
 class DailyTvTorrentsCache(tvcache.TVCache):
@@ -355,8 +375,20 @@ class DailyTvTorrentsCache(tvcache.TVCache):
         if url and self.provider.urlIsBlacklisted(url):
             logger.log(u"url %s is blacklisted, skipping..." % url, logger.DEBUG)
             return
+        
+        if title:
+            if title.endswith(' [HD]'):
+                quality = Quality.SDTV
+            elif title.endswith(' [720]'):
+                quality = Quality.HDTV
+            elif title.endswith(' [1080]'):
+                quality = Quality.FULLHDBLURAY # best choice available I think
+            else:
+                quality = None # just fall through to sb quality processing
+        else:
+            quality = None
 
         logger.log(u"Adding item from RSS to cache: "+title, logger.DEBUG)
-        self._addCacheEntry(title, url)
+        self._addCacheEntry(name=title, url=url, quality=quality)
 
 provider = DailyTvTorrentsProvider()
