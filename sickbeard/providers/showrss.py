@@ -53,7 +53,7 @@ class ShowRssProvider(generic.TorrentProvider):
     
     def findSeasonResults(self, show, season):
         
-        logger.log(u'ShowRssProvider.findSeasonResults ' + str(show) + ' Season: ' + str(season), logger.DEBUG)
+        #logger.log(u'ShowRssProvider.findSeasonResults ' + str(show) + ' Season: ' + str(season), logger.DEBUG)
         
         results = {}
         
@@ -467,6 +467,18 @@ class ShowRssProvider(generic.TorrentProvider):
         
         logger.log(u"Show %s doesn't appear to be known to ShowRSS" % show.name, logger.MESSAGE)
         return []
+    
+    def _get_title_and_url(self, item):
+        (title, url) = generic.TorrentProvider._get_title_and_url(self, item)
+                
+        # Sometimes showrss adds an unnecessary "HD 720p: " to the start of the show
+        # name (unnecessary b/c the same info is also after the show name), which
+        # throws off the name regexes.  So trim it off if present.
+        if title and title.startswith(u"HD 720p: "):
+            title = title[9:]
+            logger.log(u"Trimmed 'HD 720p: ' from title to get %s" % title, logger.DEBUG)
+
+        return (title, url)
 
 
 class ShowRssCache(tvcache.TVCache):
@@ -512,5 +524,6 @@ class ShowRssCache(tvcache.TVCache):
         logger.log(u"Adding item from RSS to cache: "+title, logger.DEBUG)
 
         self._addCacheEntry(title, url)
+
 
 provider = ShowRssProvider()

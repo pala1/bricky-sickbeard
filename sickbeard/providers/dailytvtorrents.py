@@ -355,8 +355,9 @@ class DailyTvTorrentsCache(tvcache.TVCache):
 
     def __init__(self, provider):
         tvcache.TVCache.__init__(self, provider)
-        # only poll DailyTvTorrents every 15 minutes max
-        self.minTime = 15
+        # only poll DailyTvTorrents every 30 minutes max
+        # (bumped up from 15 mins b/c we run very close to 3MB limit every day)
+        self.minTime = 30
 
 
     def _getRSSData(self):
