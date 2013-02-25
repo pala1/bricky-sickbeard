@@ -510,6 +510,8 @@ class TorrentProvider(GenericProvider):
             if data == None:
                 logger.log(u"Got no data for " + url, logger.DEBUG)
                 # fall through to next iteration
+            elif not data.startswith("d8:announce"):
+                logger.log(u"d/l url %s failed, not a valid torrent file" % (url), logger.MESSAGE)
             else:
                 try:
                     fileOut = open(fileName, 'wb')
@@ -520,12 +522,8 @@ class TorrentProvider(GenericProvider):
                     logger.log("Unable to save the file: "+ex(e), logger.ERROR)
                     return False
                 
-                if self._verify_download(fileName):
-                    logger.log(u"Success with url: " + url, logger.DEBUG)
-                    return True
-                else:
-                    logger.log(u"d/l url %s failed" % (url), logger.MESSAGE)
-    
+                logger.log(u"Success with url: " + url, logger.DEBUG)
+                return True
         else:
             logger.log(u"All d/l urls have failed.  Sorry.", logger.MESSAGE)
             return False
