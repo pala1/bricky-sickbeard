@@ -843,7 +843,7 @@ class TVShow(object):
         if self.status != None:
             toReturn += "status: " + self.status + "\n"
         toReturn += "startyear: " + str(self.startyear) + "\n"
-        toReturn += "genre: " + self.genre + "\n"
+        toReturn += "genre: " + str(self.genre) + "\n"
         toReturn += "runtime: " + str(self.runtime) + "\n"
         toReturn += "quality: " + str(self.quality) + "\n"
         return toReturn

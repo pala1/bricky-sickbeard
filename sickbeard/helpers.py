@@ -92,6 +92,10 @@ def isMediaFile (file):
     # ignore MAC OS's retarded "resource fork" files
     if file.startswith('._'):
         return False
+    
+    # ignore files with .partial. in the name (a la iplayer)
+    if ".partial." in file:
+        return False
 
     sepFile = file.rpartition(".")
     if sepFile[2].lower() in mediaExtensions:
