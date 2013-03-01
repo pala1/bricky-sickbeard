@@ -383,6 +383,7 @@ class SetNzbTorrentSettings(PopulateRootDirs):
 
         use_torrents = False
         use_nzbs = False
+        use_vods = False
 
         for cur_provider in sickbeard.providers.sortedProviderList():
             if cur_provider.isEnabled():
@@ -394,9 +395,14 @@ class SetNzbTorrentSettings(PopulateRootDirs):
                     use_torrents = True
                     logger.log(u"Provider "+cur_provider.name+" is enabled, enabling Torrents in the upgrade")
                     break
+                elif cur_provider.providerType == GenericProvider.VOD:
+                    use_vods = True
+                    logger.log(u"Provider "+cur_provider.name+" is enabled, enabling VideoOnDemand in the upgrade")
+                    break
 
         sickbeard.USE_TORRENTS = use_torrents
         sickbeard.USE_NZBS = use_nzbs
+        sickbeard.USE_VODS = use_vods
         
         sickbeard.save_config()
         

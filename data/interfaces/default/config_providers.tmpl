@@ -36,15 +36,10 @@
                         <p>Check off and drag the providers into the order you want them to be used.</p>
                         <p>At least one provider is required but two are recommended.</p>
 
-                        #if not $sickbeard.USE_NZBS or not $sickbeard.USE_TORRENTS:
-                        <blockquote style="margin: 20px 0;">NZB/Torrent providers can be toggled in <b><a href="$sbRoot/config/search">Search Settings</a></b></blockquote>
-                        #else:
-                        <br/>
-                        #end if
+                        <blockquote style="margin: 20px 0;">NZB/Torrent/VOD providers can be toggled in <b><a href="$sbRoot/config/search">Search Settings</a></b></blockquote>
 
                         <div>
                             <h4 class="note">*</h4><p class="note">Provider does not support backlog searches at this time.</p>
-                            <h4 class="note">**</h4><p class="note">Provider supports <b>limited</b> backlog searches, all episodes/qualities may not be available.</p>
                         </div>
                     </div>
 
@@ -55,6 +50,8 @@
                                 #continue
                             #elif $curProvider.providerType == $GenericProvider.TORRENT and not $sickbeard.USE_TORRENTS:
                                 #continue
+                            #elif $curProvider.providerType == $GenericProvider.VOD and not $sickbeard.USE_VODS:
+                                #continue
                             #end if
                             #set $curName = $curProvider.getID()
                           <li class="ui-state-default" id="$curName">
@@ -62,7 +59,6 @@
                             <a href="$curProvider.url" class="imgLink" target="_new"><img src="$sbRoot/images/providers/$curProvider.imageName()" alt="" title="$curProvider.name" width="16" height="16" /></a>
                             $curProvider.name
                             #if not $curProvider.supportsBacklog then "*" else ""#
-                            #if $curProvider.name in ("EZRSS", "ShowRSS", "KAT") then "**" else ""#
                             <span class="ui-icon ui-icon-arrowthick-2-n-s pull-right"></span>
                           </li>
                         #end for
@@ -90,6 +86,8 @@
                                         #if $cur_provider_obj.providerType == $GenericProvider.NZB and not $sickbeard.USE_NZBS:
                                             #continue
                                         #elif $cur_provider_obj.providerType == $GenericProvider.TORRENT and not $sickbeard.USE_TORRENTS:
+                                            #continue
+                                        #elif $cur_provider_obj.providerType == $GenericProvider.VOD and not $sickbeard.USE_VODS:
                                             #continue
                                         #end if
                                         $provider_config_list.append($cur_provider_obj)

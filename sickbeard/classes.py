@@ -120,6 +120,12 @@ class TorrentSearchResult(SearchResult):
     Torrent result with an URL to the torrent
     """
     resultType = "torrent"
+    
+class VODSearchResult(SearchResult):
+    """
+    VOD result with an URL to the torrent
+    """
+    resultType = "stream"
 
 
 class ShowListUI:

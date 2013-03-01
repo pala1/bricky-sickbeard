@@ -30,7 +30,7 @@ from threading import Lock
 
 # apparently py2exe won't build these unless they're imported somewhere
 from sickbeard import providers, metadata
-from providers import ezrss, tvtorrents, btn, nzbsrus, newznab, womble, showrss, kat, dailytvtorrents
+from providers import ezrss, tvtorrents, btn, nzbsrus, newznab, womble, showrss, kat, dailytvtorrents, iplayer
 from sickbeard.config import CheckSection, check_setting_int, check_setting_str, ConfigMigrator
 
 from sickbeard import searchCurrent, searchBacklog, showUpdater, versionChecker, properFinder, autoPostProcesser
@@ -140,6 +140,7 @@ TVDB_API_PARMS = {}
 
 USE_NZBS = None
 USE_TORRENTS = None
+USE_VODS = None
 
 NZB_METHOD = None
 NZB_DIR = None
@@ -179,6 +180,9 @@ NZBS_UID = None
 NZBS_HASH = None
 
 WOMBLE = False
+
+IPLAYER = False
+IPLAYER_GETIPLAYER_PATH = None
 
 NZBSRUS = False
 NZBSRUS_UID = None
@@ -312,6 +316,7 @@ def initialize(consoleLogging=True):
 
         global LOG_DIR, WEB_PORT, WEB_LOG, WEB_ROOT, WEB_USERNAME, WEB_PASSWORD, WEB_HOST, WEB_IPV6, USE_API, API_KEY, ENABLE_HTTPS, HTTPS_CERT, HTTPS_KEY, \
                 USE_NZBS, USE_TORRENTS, NZB_METHOD, NZB_DIR, DOWNLOAD_PROPERS, \
+                USE_VODS, IPLAYER, IPLAYER_GETIPLAYER_PATH, \
                 SAB_USERNAME, SAB_PASSWORD, SAB_APIKEY, SAB_CATEGORY, SAB_HOST, \
                 NZBGET_PASSWORD, NZBGET_CATEGORY, NZBGET_HOST, currentSearchScheduler, backlogSearchScheduler, \
                 USE_XBMC, XBMC_NOTIFY_ONSNATCH, XBMC_NOTIFY_ONDOWNLOAD, XBMC_UPDATE_FULL, \
@@ -427,6 +432,7 @@ def initialize(consoleLogging=True):
 
         USE_NZBS = bool(check_setting_int(CFG, 'General', 'use_nzbs', 1))
         USE_TORRENTS = bool(check_setting_int(CFG, 'General', 'use_torrents', 0))
+        USE_VODS = bool(check_setting_int(CFG, 'General', 'use_vods', 0))
 
         NZB_METHOD = check_setting_str(CFG, 'General', 'nzb_method', 'blackhole')
         if NZB_METHOD not in ('blackhole', 'sabnzbd', 'nzbget'):
@@ -568,6 +574,10 @@ def initialize(consoleLogging=True):
 
         CheckSection(CFG, 'Womble')
         WOMBLE = bool(check_setting_int(CFG, 'Womble', 'womble', 1))
+        
+        CheckSection(CFG, 'Iplayer')
+        IPLAYER = bool(check_setting_int(CFG, 'Iplayer', 'Iplayer', 1))
+        IPLAYER_GETIPLAYER_PATH = check_setting_int(CFG, 'Iplayer', 'get_iplayer_path', '/Users/dermot/Documents/get_iplayer/get_iplayer')
 
         CheckSection(CFG, 'SABnzbd')
         SAB_USERNAME = check_setting_str(CFG, 'SABnzbd', 'sab_username', '')
@@ -965,6 +975,7 @@ def save_config():
     new_config['General']['https_key'] = HTTPS_KEY
     new_config['General']['use_nzbs'] = int(USE_NZBS)
     new_config['General']['use_torrents'] = int(USE_TORRENTS)
+    new_config['General']['use_vods'] = int(USE_VODS)
     new_config['General']['nzb_method'] = NZB_METHOD
     new_config['General']['usenet_retention'] = int(USENET_RETENTION)
     new_config['General']['search_frequency'] = int(SEARCH_FREQUENCY)
@@ -1050,6 +1061,9 @@ def save_config():
 
     new_config['Womble'] = {}
     new_config['Womble']['womble'] = int(WOMBLE)
+    
+    new_config['Iplayer'] = {}
+    new_config['Iplayer']['Iplayer'] = int(IPLAYER)
 
     new_config['SABnzbd'] = {}
     new_config['SABnzbd']['sab_username'] = SAB_USERNAME

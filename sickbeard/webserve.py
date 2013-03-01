@@ -769,7 +769,7 @@ class ConfigSearch:
         return _munge(t)
 
     @cherrypy.expose
-    def saveSearch(self, use_nzbs=None, use_torrents=None, nzb_dir=None, sab_username=None, sab_password=None,
+    def saveSearch(self, use_nzbs=None, use_torrents=None, use_vods=None, nzb_dir=None, sab_username=None, sab_password=None,
                        sab_apikey=None, sab_category=None, sab_host=None, nzbget_password=None, nzbget_category=None, nzbget_host=None,
                        torrent_dir=None, nzb_method=None, usenet_retention=None, search_frequency=None, download_propers=None):
 
@@ -797,12 +797,18 @@ class ConfigSearch:
             use_torrents = 1
         else:
             use_torrents = 0
+            
+        if use_vods == "on":
+            use_vods = 1
+        else:
+            use_vods = 0
 
         if usenet_retention == None:
             usenet_retention = 200
 
         sickbeard.USE_NZBS = use_nzbs
         sickbeard.USE_TORRENTS = use_torrents
+        sickbeard.USE_VODS = use_vods
 
         sickbeard.NZB_METHOD = nzb_method
         sickbeard.USENET_RETENTION = int(usenet_retention)
@@ -1107,6 +1113,8 @@ class ConfigProviders:
                 sickbeard.KAT = curEnabled
             elif curProvider == 'dailytvtorrents':
                 sickbeard.DAILYTVTORRENTS = curEnabled
+            elif curProvider == 'iplayer':
+                sickbeard.IPLAYER = curEnabled
             elif curProvider in newznabProviderDict:
                 newznabProviderDict[curProvider].enabled = bool(curEnabled)
             else:

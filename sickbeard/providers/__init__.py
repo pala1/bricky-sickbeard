@@ -24,6 +24,7 @@ __all__ = ['ezrss',
            'showrss',
            'kat',
            'dailytvtorrents',
+           'iplayer',
            ]
 
 import sickbeard

@@ -45,6 +45,7 @@ class GenericProvider:
 
     NZB = "nzb"
     TORRENT = "torrent"
+    VOD = "strm"    # just to keep SB happy, not really an extension like the other two.
 
     def __init__(self, name):
 
@@ -75,6 +76,8 @@ class GenericProvider:
             return self.isEnabled()
         elif self.providerType == GenericProvider.TORRENT and sickbeard.USE_TORRENTS:
             return self.isEnabled()
+        elif self.providerType == GenericProvider.VOD and sickbeard.USE_VODS:
+            return self.isEnabled()
         else:
             return False
 
@@ -93,6 +96,8 @@ class GenericProvider:
             result = classes.NZBSearchResult(episodes)
         elif self.providerType == GenericProvider.TORRENT:
             result = classes.TorrentSearchResult(episodes)
+        elif self.providerType == GenericProvider.VOD:
+            result = classes.VODSearchResult(episodes)
         else:
             result = classes.SearchResult(episodes)
 
@@ -530,3 +535,16 @@ class TorrentProvider(GenericProvider):
         
         
         return False
+
+
+
+class VODProvider(GenericProvider):
+    """
+    Video-On-Demand provider
+    """
+    
+    def __init__(self, name):
+        GenericProvider.__init__(self, name)
+        self.providerType = GenericProvider.VOD
+
+    
