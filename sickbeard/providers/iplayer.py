@@ -138,8 +138,10 @@ def _downloadPid(pid, with_subs=True, with_metadata=True):
             
             # Also need to rename any associated files (nfo and srt)
             for otherFile in glob.glob(newFilePrefix + '.*'):
+                if otherFile == newFileName:
+                    continue
                 otherFilePrefix, otherFileExt = os.path.splitext(otherFile)
-                newOtherFile = newFilePrefix + '.' + otherFileExt
+                newOtherFile = newFilePrefix + otherFileExt
                 logger.log('Renaming {0} to {1}'.format(otherFile, newOtherFile), logger.DEBUG)
                 os.rename(otherFile, newOtherFile)
             
@@ -155,7 +157,7 @@ def _downloadPid(pid, with_subs=True, with_metadata=True):
         isVideo = isMediaFile(fullFilePath)
         if isVideo:
             can_delete = False # keep the folder - something prob went wrong
-            logger.log('Found a media file after processing, somethign probably went wrong: ' + fullFilePath, logger.MESSAGE)
+            logger.log('Found a media file after processing, something probably went wrong: ' + fullFilePath, logger.MESSAGE)
         else:
             logger.log('Extra file left over (will be deleted if no media found): ' + fullFilePath, logger.DEBUG)
     
