@@ -30,7 +30,7 @@ def get_scene_exceptions(tvdb_id, ignoreCustom=False):
     """
 
     myDB = db.DBConnection("cache.db")
-    exceptions = myDB.select("SELECT show_name FROM scene_exceptions WHERE tvdb_id = ?", [tvdb_id])
+    exceptions = myDB.select(u"SELECT show_name FROM scene_exceptions WHERE tvdb_id = ?", [tvdb_id])
     if ignoreCustom:
         return [cur_exception["show_name"] for cur_exception in exceptions]
     else:
@@ -46,11 +46,11 @@ def get_scene_exception_by_name(show_name):
     myDB = db.DBConnection("cache.db")
 
     # try the obvious case first
-    exception_result = myDB.select("SELECT tvdb_id FROM scene_exceptions WHERE LOWER(show_name) = ?", [show_name.lower()])
+    exception_result = myDB.select(u"SELECT tvdb_id FROM scene_exceptions WHERE LOWER(show_name) = ?", [show_name.lower()])
     if exception_result:
         return int(exception_result[0]["tvdb_id"])
 
-    all_exception_results = myDB.select("SELECT show_name, tvdb_id FROM scene_exceptions")
+    all_exception_results = myDB.select(u"SELECT show_name, tvdb_id FROM scene_exceptions")
     for cur_exception in all_exception_results:
 
         cur_exception_name = cur_exception["show_name"]
