@@ -148,7 +148,7 @@ def _downloadPid(pid, with_subs=True, with_metadata=True):
     
     # Ok, we're done with *our* post-processing, so let SB do its own.
     processResult = processDir(tmp_dir)
-    logger.log(u"processDir returned " + processResult , logger.DEBUG)
+    #logger.log(u"processDir returned " + processResult , logger.DEBUG) - this is long, and quite useless!
     
     files_remaining = os.listdir(tmp_dir)
     can_delete = True
@@ -163,7 +163,7 @@ def _downloadPid(pid, with_subs=True, with_metadata=True):
     
     # tidy up - delete our temp dir
 
-    if can_delete:
+    if can_delete and os.path.isdir(tmp_dir):
         logger.log('Removing temp dir: ' + tmp_dir, logger.DEBUG)
         shutil.rmtree(tmp_dir)
             
