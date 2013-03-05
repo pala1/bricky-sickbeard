@@ -4,7 +4,7 @@ This is a fork of the incredible [Sick Beard](https://github.com/midgetspy/Sick-
 Specifically it includes 
 * Support for the [ShowRSS](http://showrss.karmorra.info/) torrent feed (with some limited backlog support), 
 * Support for [dailytvtorrents](http://www.dailytvtorrents.org/)
-* Support for iPlayer downloads (via the get_iplayer perl script)
+* Support for iPlayer downloads (via the [get_iplayer perl script](http://www.infradead.org/get_iplayer/html/get_iplayer.html)). [See here for how to set this up](http://brickybox.com/2013/03/05/sickbeard-iplayer-requirements)
 * a UI for adding custom (local) scene exception names,
 * use of twitter, tpb, and feedburner rss feeds as fallbacks when ezrss fails.
 * Support for the [Kickass Torrents](http://kat.ph/) torrent site (including backlog).  Searches verified torrents only.
