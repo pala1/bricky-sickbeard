@@ -577,7 +577,7 @@ def initialize(consoleLogging=True):
         
         CheckSection(CFG, 'Iplayer')
         IPLAYER = bool(check_setting_int(CFG, 'Iplayer', 'Iplayer', 1))
-        IPLAYER_GETIPLAYER_PATH = check_setting_int(CFG, 'Iplayer', 'get_iplayer_path', 'get_iplayer')
+        IPLAYER_GETIPLAYER_PATH = check_setting_int(CFG, 'Iplayer', 'get_iplayer_path', '')
 
         CheckSection(CFG, 'SABnzbd')
         SAB_USERNAME = check_setting_str(CFG, 'SABnzbd', 'sab_username', '')

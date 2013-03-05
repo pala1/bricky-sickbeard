@@ -63,9 +63,13 @@ class Iplayer:
     @classmethod
     def get_iplayer_path(cls):
         """
-        for now...
+        Get the full path to the get_iplayer perl script
         """
-        return sickbeard.IPLAYER_GETIPLAYER_PATH
+        if sickbeard.IPLAYER_GETIPLAYER_PATH and sickbeard.IPLAYER_GETIPLAYER_PATH is not '':
+            return sickbeard.IPLAYER_GETIPLAYER_PATH
+        else:
+            # use our included get_iplayer script if no path is set in config.ini
+            return os.path.join(sickbeard.PROG_DIR, 'lib', 'get_iplayer', 'get_iplayer')
 
     @classmethod
     def iplayer_quality_to_sb_quality(cls, iplayer_q):
