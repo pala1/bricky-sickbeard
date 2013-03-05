@@ -19,6 +19,7 @@
 import re
 import subprocess
 import threading
+import time
 import tempfile
 import os
 import glob
@@ -30,142 +31,305 @@ import generic
 from sickbeard import logger
 from sickbeard import tvcache
 from sickbeard.common import Quality
-from sickbeard.helpers import searchDBForShow, listMediaFiles, isMediaFile
+from sickbeard.helpers import listMediaFiles, isMediaFile
 from sickbeard.processTV import processDir
 from sickbeard.name_parser.parser import NameParser
 
-def iplayerQualityToSbQuality(iplayer_q):
-    """
-    iplayer ref: http://beebhack.wikia.com/wiki/IPlayer_TV#Comparison_Table
-    SB ref: https://code.google.com/p/sickbeard/wiki/QualitySettings
-    
-    @param iplayer_q: (string) quality, one of flashhd,flashvhigh,flashhigh,flashstd,flashnormal,flashlow,n95_wifi
-    @return: (int) one of the sickbeard.common.Quality values 
-    """
-    if iplayer_q == 'flashhd':
-        return Quality.HDWEBDL
-    if iplayer_q == 'flashvhigh':
-        return Quality.HDTV
-    if iplayer_q in ('flashhigh', 'iphone', 'flashlow', 'flashstd', 'flashnormal', 'n95_wifi', 'n95_3g'):
-        return Quality.SDTV
-    else:
-        # everything else is unknown for now
-        return Quality.UNKNOWN
-    
-def iplayerQualityToSbQualityString(iplayer_q):
-    """
-    Given an iPlayer quality, returns a string which SB will thing is about the same quality.
-    (per rules in sickbeard.common.Quality.nameQuality)
-    """
-    if iplayer_q == 'flashhd':
-        return '720p.web.dl'
-    if iplayer_q == 'flashvhigh':
-        return 'hr.ws.pdtv.x264'
-    if iplayer_q in ('flashhigh', 'iphone', 'flashlow', 'flashstd', 'flashnormal', 'n95_wifi', 'n95_3g'):
-        return 'HDTV.XviD'
-    else:
-        return iplayer_q
+FIELD_SEP = '|||'   # field separator used when spliting fields
 
-def _downloadPid(pid, with_subs=True, with_metadata=True):
+IPLAYER_LIST_FIELDNAMES =  [ 
+   'pid', 'index', 'name', 'seriesnum', 'episode', 
+   'episodenum', 'versions', 'type',
+   'categories',
+   # 'desc',  'thumbnail', 
+   #'web', 'channel', 'categories',  'duration', 
+   #  'available', 'timeadded' 
+   ]
+
+"""
+The time we will wait (in secs) for get_iplayer to completed a snatch
+(i.e. start a download)
+"""
+IPLAYER_SNATCH_TIMEOUT_SECS = 60 
+
+# eg. 1114354.601 kB / 3545.09 sec (99.9%)
+IPLAYER_DL_PROGRESS_PATTERN = '^(?P<size>\d*\.?\d* kB) / (?P<time>\d*\.?\d*) sec \((?P<perc>\d*\.?\d*)%\).*'
+
+class Iplayer:
     """
-    Download a pid.
-    This is a blocking call, so call in it's own thread (or somewhere that
-    blocking doesn't matter), as this may take quite some time to run.
+    Common interface to get_iplayer calls and utils
+    """
     
-    @param pid: (string) pid to download
-    @param with_subs: (bool) download subs also if available
-    @param with_metadata: (bool) download xbmc metadata 
-    """
+    @classmethod
+    def get_iplayer_path(cls):
+        """
+        for now...
+        """
+        return sickbeard.IPLAYER_GETIPLAYER_PATH
+
+    @classmethod
+    def iplayer_quality_to_sb_quality(cls, iplayer_q):
+        """
+        iplayer ref: http://beebhack.wikia.com/wiki/IPlayer_TV#Comparison_Table
+        SB ref: https://code.google.com/p/sickbeard/wiki/QualitySettings
         
-    tmp_dir = tempfile.mkdtemp()
+        @param iplayer_q: (string) quality, one of flashhd,flashvhigh,flashhigh,flashstd,flashnormal,flashlow,n95_wifi
+        @return: (int) one of the sickbeard.common.Quality values 
+        """
+        if iplayer_q == 'flashhd':
+            return Quality.HDWEBDL
+        if iplayer_q == 'flashvhigh':
+            return Quality.HDTV
+        if iplayer_q in ('flashhigh', 'iphone', 'flashlow', 'flashstd', 'flashnormal', 'n95_wifi', 'n95_3g'):
+            return Quality.SDTV
+        else:
+            # everything else is unknown for now
+            return Quality.UNKNOWN
     
-    cmd = [ sickbeard.IPLAYER_GETIPLAYER_PATH,
+    @classmethod
+    def iplayer_quality_to_sb_quality_string(cls, iplayer_q):
+        """
+        Given an iPlayer quality, returns a string which SB will think is about the same quality.
+        (per rules in sickbeard.common.Quality.nameQuality)
+        """
+        if iplayer_q == 'flashhd':
+            return '720p.web.dl'
+        if iplayer_q == 'flashvhigh':
+            return 'hr.ws.pdtv.x264'
+        if iplayer_q in ('flashhigh', 'iphone', 'flashlow', 'flashstd', 'flashnormal', 'n95_wifi', 'n95_3g'):
+            return 'HDTV.XviD'
+        else:
+            return iplayer_q
+        
+    @classmethod
+    def download_pid(cls, pid, with_subs=True, with_metadata=True):
+        """
+        Start the download of a pid.  Return True if the download *starts* successfully.
+        This method will block for a while until the download starts (or times out)
+        
+        @param pid: (string) BBC pid (a short string)
+        @param with_subs: (bool) True to include subs if available.
+        @param with_metadata: (bool) True to include xbmc metadata (if available)
+        @return: (bool) True => Snatched.
+        """
+        
+        def _finish_download_process():
+            """
+            Finish downloading a pid
+            (this is a closure, called in another thread)
+            """
+            
+            last_reported_perc = 0.0
+            
+            while p.poll() is None:
+                line = p.stdout.readline()
+                if line:
+                    line = line.rstrip()
+                    match = re.match(IPLAYER_DL_PROGRESS_PATTERN, line, re.IGNORECASE)
+                    if match:
+                        dlSize = match.group('size')
+                        dlTime = match.group('time')
+                        dlPerc = float(match.group('perc'))
+                        if dlPerc - last_reported_perc >= 10.0:
+                            # only report progress every 10% or so.
+                            logger.log(u"RUNNING iPLAYER: "+line, logger.DEBUG)
+                            last_reported_perc = dlPerc
+                    else:
+                        # not a progress line, echo it to debug
+                        logger.log(u"RUNNING iPLAYER: "+line, logger.DEBUG)
+                            
+                        
+            
+            logger.log(u"RUNNING iPLAYER: process has ended, returncode was " + 
+                       repr(p.returncode) , logger.DEBUG)
+            
+            # We will need to rename some of the files in the folder to ensure 
+            # that sb is comfortable with them.
+            videoFiles = listMediaFiles(tmp_dir)
+            for videoFile in videoFiles:
+                filePrefix, fileExt = os.path.splitext(videoFile)
+                if fileExt and fileExt[0] == '.': 
+                    fileExt = fileExt[1:]
+                
+                # split again to get the quality
+                filePrePrefix, fileQuality = os.path.splitext(filePrefix)   
+                if fileQuality and fileQuality[0] == '.': 
+                    fileQuality = fileQuality[1:]   
+                qual_str = cls.iplayer_quality_to_sb_quality_string(fileQuality)
+                
+                # reassemble the filename again, with new quality
+                newFilePrefix = filePrePrefix + '.' + qual_str
+                newFileName = newFilePrefix + '.' + fileExt
+                
+                if newFileName != videoFile:    # just in case!
+                    logger.log('Renaming {0} to {1}'.format(videoFile, newFileName), logger.DEBUG)
+                    os.rename(videoFile, newFileName)
+                    
+                    # Also need to rename any associated files (nfo and srt)
+                    for otherFile in glob.glob(newFilePrefix + '.*'):
+                        if otherFile == newFileName:
+                            continue
+                        otherFilePrefix, otherFileExt = os.path.splitext(otherFile)
+                        newOtherFile = newFilePrefix + otherFileExt
+                        logger.log('Renaming {0} to {1}'.format(otherFile, newOtherFile), logger.DEBUG)
+                        os.rename(otherFile, newOtherFile)
+                    
+            
+            # Ok, we're done with *our* post-processing, so let SB do its own.
+            processResult = processDir(tmp_dir)
+            #logger.log(u"processDir returned " + processResult , logger.DEBUG) - this is long, and quite useless!
+            
+            files_remaining = os.listdir(tmp_dir)
+            can_delete = True
+            for filename in files_remaining:
+                fullFilePath = os.path.join(tmp_dir, filename)
+                isVideo = isMediaFile(fullFilePath)
+                if isVideo:
+                    can_delete = False # keep the folder - something prob went wrong
+                    logger.log('Found a media file after processing, something probably went wrong: ' + fullFilePath, logger.MESSAGE)
+                else:
+                    logger.log('Extra file left over (will be deleted if no media found): ' + fullFilePath, logger.DEBUG)
+            
+            # tidy up - delete our temp dir
+        
+            if can_delete and os.path.isdir(tmp_dir):
+                logger.log('Removing temp dir: ' + tmp_dir, logger.DEBUG)
+                shutil.rmtree(tmp_dir)
+                
+        
+        
+        tmp_dir = tempfile.mkdtemp()
+        iplayer_path = cls.get_iplayer_path()
+        
+        if iplayer_path is None: 
+            return False
+        
+        cmd = [ iplayer_path,
                 '--get',
                 '--pid=' + pid,
                 '--nocopyright', 
                 '--attempts=10',
                 '--modes=best',
                 '--force',  # stop complaints about already being downloaded
-                #'--subtitles',
                 '--file-prefix="<nameshort>-<senum>-<pid>.<mode>"',
                 '--output="' + tmp_dir + '"',   # we save to tmp_dir first
                 ]
-    
-    if with_subs:
-        cmd.append('--subtitles')
-    
-    if with_metadata:
-        cmd.append('--metadata=xbmc')
         
-    cmd = " ".join(cmd) 
+        if with_subs:
+            cmd.append('--subtitles')
         
-    logger.log(u"get_iplayer (cmd) = "+repr(cmd), logger.DEBUG)
-        
-    # we need a shell b/c it's a perl script and it will need to find the 
-    # interpreter
-    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
-                         shell=True, universal_newlines=True) 
-
-    while p.poll() is None:
-        line = p.stdout.readline()
-        if line:
-            logger.log(u"RUNNING iPLAYER: "+line.rstrip(), logger.DEBUG)
-    
-    logger.log(u"RUNNING iPLAYER: process has ended, returncode was " + 
-               repr(p.returncode) , logger.DEBUG)
-    
-    # We will need to rename some of the files in the folder to ensure that
-    # sb is comfortable with them.
-    videoFiles = listMediaFiles(tmp_dir)
-    for videoFile in videoFiles:
-        filePrefix, fileExt = os.path.splitext(videoFile)
-        if fileExt and fileExt[0] == '.': 
-            fileExt = fileExt[1:]
-        
-        # split again to get the quality
-        filePrePrefix, fileQuality = os.path.splitext(filePrefix)   
-        if fileQuality and fileQuality[0] == '.': 
-            fileQuality = fileQuality[1:]   
-        qual_str = iplayerQualityToSbQualityString(fileQuality)
-        
-        # reassemble the filename again, with new quality
-        newFilePrefix = filePrePrefix + '.' + qual_str
-        newFileName = newFilePrefix + '.' + fileExt
-        
-        if newFileName != videoFile:    # just in case!
-            logger.log('Renaming {0} to {1}'.format(videoFile, newFileName), logger.DEBUG)
-            os.rename(videoFile, newFileName)
+        if with_metadata:
+            cmd.append('--metadata=xbmc')
             
-            # Also need to rename any associated files (nfo and srt)
-            for otherFile in glob.glob(newFilePrefix + '.*'):
-                if otherFile == newFileName:
-                    continue
-                otherFilePrefix, otherFileExt = os.path.splitext(otherFile)
-                newOtherFile = newFilePrefix + otherFileExt
-                logger.log('Renaming {0} to {1}'.format(otherFile, newOtherFile), logger.DEBUG)
-                os.rename(otherFile, newOtherFile)
+        cmd = " ".join(cmd) 
             
-    
-    # Ok, we're done with *our* post-processing, so let SB do its own.
-    processResult = processDir(tmp_dir)
-    #logger.log(u"processDir returned " + processResult , logger.DEBUG) - this is long, and quite useless!
-    
-    files_remaining = os.listdir(tmp_dir)
-    can_delete = True
-    for filename in files_remaining:
-        fullFilePath = os.path.join(tmp_dir, filename)
-        isVideo = isMediaFile(fullFilePath)
-        if isVideo:
-            can_delete = False # keep the folder - something prob went wrong
-            logger.log('Found a media file after processing, something probably went wrong: ' + fullFilePath, logger.MESSAGE)
-        else:
-            logger.log('Extra file left over (will be deleted if no media found): ' + fullFilePath, logger.DEBUG)
-    
-    # tidy up - delete our temp dir
+        logger.log(u"get_iplayer (cmd) = "+repr(cmd), logger.DEBUG)
+        
+        start_time = time.time()
+        
+        # we need a shell b/c it's a perl script and it will need to find the 
+        # interpreter
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, 
+                             stderr=subprocess.STDOUT, 
+                             shell=True, universal_newlines=True) 
+        
+        while p.poll() is None:
+            line = p.stdout.readline()
+            if line:
+                line = line.rstrip()
+                logger.log(u"RUNNING iPLAYER: "+line, logger.DEBUG)
+                
+                
+                # download progress lines look like:
+                # 1114354.601 kB / 3545.09 sec (99.9%)
+                match = re.match(IPLAYER_DL_PROGRESS_PATTERN, line, re.IGNORECASE)
+                if match:
+                    logger.log(u"RUNNING iPLAYER: Got a progress line, d/l started", logger.DEBUG)
+                    
+                    # ok, we can hand this off to the monitoring thread, and 
+                    # return True (for SNATCHED)
+                    
+                    logger.log(u"Forking new thread to monitor, and returning True (for snatched)", logger.DEBUG)
+                    t = threading.Thread(target=_finish_download_process)
+                    t.start() 
+                    
+                    return True
+                
+            if time.time() - start_time > IPLAYER_SNATCH_TIMEOUT_SECS:
+                # Timeout!
+                logger.log(u"RUNNING iPLAYER: process timeout after %d secs, killing"%IPLAYER_SNATCH_TIMEOUT_SECS, 
+                           logger.WARNING)
+                p.terminate()
+                return False
+            
+            # give the process a little time to do stuff before checking again
+            time.sleep(0.05)
+        
+        # process has ended - must be an error
+        logger.log(u"RUNNING iPLAYER: process has ended too soon (failure), returncode was " + 
+                   repr(p.returncode) , logger.WARNING)
+        return False
 
-    if can_delete and os.path.isdir(tmp_dir):
-        logger.log('Removing temp dir: ' + tmp_dir, logger.DEBUG)
-        shutil.rmtree(tmp_dir)
+    
+            
+    @classmethod
+    def get_available_downloads(cls, since=None):
+        """
+        Get a list of available downloads from get_iplayer.
+        
+        @param since: added since (number of hours - same as 'since' switch to 
+                      get_iplayer).  If None, this is omitted
+        @return: Returns a list of dicts, each dict being a pid available for 
+                 download.  Each dict will have the keys from 
+                 IPLAYER_LIST_FIELDNAMES
+        """
+        iplayer_path = cls.get_iplayer_path()
+        if iplayer_path is None:
+            return []
+        
+        cmd = [ iplayer_path,
+                '--listformat',
+                '"<' + (('>' + FIELD_SEP + '<').join(IPLAYER_LIST_FIELDNAMES)) + '>"', 
+                '--nocopyright', 
+                #'--since 24', # only shows added in the last 24 hours    
+                ]
+        
+        cmd = " ".join(cmd) # not quite sure why, but Popen doesn't like the list
+        
+        logger.log(u"get_iplayer (cmd) = "+repr(cmd), logger.DEBUG)
+        
+        # we need a shell b/c it's a perl script and it will need to find the 
+        # interpreter
+        os.environ['PYTHONIOENCODING'] = 'utf-8'
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
+                             shell=True, universal_newlines=True) 
+        out, err = p.communicate()
+        
+        #logger.log(u"get_iplayer (out) = "+repr(out), logger.DEBUG)
+        logger.log(u"get_iplayer (err) = "+repr(err), logger.DEBUG)
+        
+        results = []
+        
+        for line in out.splitlines():
+            line = line.decode('utf-8')
+            logger.log(u"Got line: "+repr(line), logger.DEBUG)
+            fields = line.split(FIELD_SEP)
+            
+            if len(fields) != len(IPLAYER_LIST_FIELDNAMES):
+                logger.log(u"Ignoring line '%s', it has the wrong number of fields"%line, 
+                           logger.DEBUG)
+                continue
+            
+            fkeyed = dict((fieldname, fields[IPLAYER_LIST_FIELDNAMES.index(fieldname)]) 
+                          for fieldname in IPLAYER_LIST_FIELDNAMES)
+            
+            # Sometimes pid is preceeded with 'Added: ', if so we remove it
+            if fkeyed['pid'].startswith(u'Added: '):
+                fkeyed['pid'] = fkeyed['pid'][7:]
+            
+            results.append(fkeyed)
+            
+        return results
             
 
 class IplayerProvider(generic.VODProvider):
@@ -185,11 +349,7 @@ class IplayerProvider(generic.VODProvider):
         The .url property of result should be an iplayer pid.
         """
         logger.log(u"Downloading a result from " + self.name+" at " + result.url)
-        
-        t = threading.Thread(target=_downloadPid, args=(result.url,True,True))
-        t.start() 
-        
-        return True # for now we assume success
+        return Iplayer.download_pid(result.url, True, True)
 
 class IplayerCache(tvcache.TVCache):
 
@@ -201,52 +361,12 @@ class IplayerCache(tvcache.TVCache):
 
         if not self.shouldUpdate():
             return
+
+        # @todo: put in a reasonable 'since' value here, prob calc'ed from self.lastUpdate
+        results = Iplayer.get_available_downloads()
         
-        FIELD_SEP = '|||' 
-        
-        fieldnames = [ 'pid', 'index', 'name', 'seriesnum', 'episode', 
-                       'episodenum', 'versions', 'type',
-                       'categories',
-                     # 'desc',  'thumbnail', 
-                     #'web', 'channel', 'categories',  'duration', 
-                     #  'available', 'timeadded' 
-                     ]
-        
-        cmd = [ sickbeard.IPLAYER_GETIPLAYER_PATH,
-                '--listformat',
-                '"<' + (('>' + FIELD_SEP + '<').join(fieldnames)) + '>"', 
-                '--nocopyright', 
-                #'--since 24', # only shows added in the last 24 hours    
-                ]
-        
-        cmd = " ".join(cmd) # not quite sure why, but Popen doesn't like the list
-        
-        logger.log(u"get_iplayer (cmd) = "+repr(cmd), logger.DEBUG)
-        
-        # we need a shell b/c it's a perl script and it will need to find the 
-        # interpreter
-        os.environ['PYTHONIOENCODING'] = 'utf-8'
-        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
-                             shell=True, universal_newlines=True) 
-        out, err = p.communicate()
-        
-        #logger.log(u"get_iplayer (out) = "+repr(out), logger.DEBUG)
-        logger.log(u"get_iplayer (err) = "+repr(err), logger.DEBUG)
-        
-        logger.log(u"Clearing "+self.provider.name+" cache and updating with new information")
-        self._clearCache()
-        
-        for line in out.splitlines():
-            line = line.decode('utf-8')
-            logger.log(u"Got line: "+repr(line), logger.DEBUG)
-            fields = line.split(FIELD_SEP)
-            
-            if len(fields) != len(fieldnames):
-                logger.log(u"Ignoring line '%s', it has the wrong number of fields"%line, logger.DEBUG)
-                continue
-            
-            fkeyed = dict((fieldname, fields[fieldnames.index(fieldname)]) for fieldname in fieldnames)
-            
+        for fkeyed in results:
+
             # for now we ignore anything that doesn't have an episodenum (yes, we'll miss ABD b/c of this)
             if fkeyed['episodenum'] is u'':
                 continue
@@ -264,18 +384,6 @@ class IplayerCache(tvcache.TVCache):
             
             fakeFilename = u'%s S%sE%s - %s' % (fkeyed['name'], fkeyed['seriesnum'], fkeyed['episodenum'], fkeyed['episode'])
             fakeUrl = fkeyed['pid']
-            
-            # Sometimes pid is preceeded with 'Added: ', if so we remove it
-            if fakeUrl.startswith(u'Added: '):
-                fakeUrl = fakeUrl[7:]
-            
-            # is this one of the shows in the db?
-            #fromDb = searchDBForShow(fkeyed['name'])
-            #if fromDb:
-            #    (tvdb_id, show_name) = fromDb
-            
-            # for now, let's just pretend everything is HD
-            #qual = Quality.HDWEBDL
             
             # it looks like anything available in HD has 'HD' in the categories.
             # so use that as our quality flag
