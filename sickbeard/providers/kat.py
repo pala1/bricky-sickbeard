@@ -164,49 +164,70 @@ class KATProvider(generic.TorrentProvider):
             logger.log(u"Unknown exception while loading URL " + url + ": " + traceback.format_exc(), logger.ERROR)
             return None
 
-        
-
     def _doSearch(self, search_params, show=None):
-    
-        params = {"rss": "1"}
-    
-        if search_params:
-            params.update(search_params)
-            
-        # http://kat.ph/usearch/%22james%20may%22%20verified:1%20season:1%20episode:1/?rss=1
-        
-        searchURL = self.url + 'usearch/' 
-        
-        # Many of the 'params' here actually belong in the path as name:value pairs.
-        # so we remove the ones we know about (adding them to the path as we do so)
-        if 'show_name' in params:
-            searchURL = searchURL + urllib.quote('"' + params.pop('show_name') + '"') +"%20"
-      
-        if 'season' in params:
-            searchURL = searchURL + 'season:' + str(params.pop('season')) +"%20"
-            
-        if 'episode' in params:
-            searchURL = searchURL + 'episode:' + str(params.pop('episode')) +"%20"
-            
-        if 'date' in params:
-            logger.log(u"Sorry, air by date not supported by kat.  Removing: " + params.pop('date'), logger.WARNING)
-            
-            
-        # we probably have an extra %20 at the end of the url.  Not likely to 
-        # cause problems, but it is uneeded, so trim it
-        if searchURL.endswith('%20'):
-            searchURL = searchURL[:-3]
-        
-        
-        searchURL = searchURL + '/?' + urllib.urlencode(params) # this will likely only append the rss=1 part
 
-        logger.log(u"Search string: " + searchURL, logger.DEBUG)
-
+        # First run a search using the advanced format -- results are probably more reliable, but often not available for several weeks
+        # http://kat.ph/usearch/%22james%20may%22%20season:1%20episode:1%20verified:1/?rss=1
+        def advancedEpisodeParamBuilder(params):
+            episodeParam = ''
+            if 'show_name' in params:
+                episodeParam = episodeParam + urllib.quote('"' + params.pop('show_name') + '"') +"%20"
+            if 'season' in params:
+                episodeParam = episodeParam + 'season:' + str(params.pop('season')) +"%20"
+            if 'episode' in params:
+                episodeParam = episodeParam + 'episode:' + str(params.pop('episode')) +"%20"
+            return episodeParam
+        searchURL = self._buildSearchURL(advancedEpisodeParamBuilder, search_params);
+        logger.log(u"Advanced-style search string: " + searchURL, logger.DEBUG)
         data = self.getURL(searchURL)
+
+        # Run a fuzzier search if no results came back from the "advanced" style search
+        # http://kat.ph/usearch/%22james%20may%22%20S01E01%20verified:1/?rss=1
+        if not data or data == '<?xml version="1.0" encoding="utf-8"?><rss version="2.0"><channel></channel></rss>':
+            def fuzzyEpisodeParamBuilder(params):
+                episodeParam = ''
+                if not 'show_name' in params or not 'season' in params or not 'episode' in params:
+                    return ''
+                episodeParam = episodeParam + urllib.quote('"' + params.pop('show_name') + '"') + "%20"
+                episodeParam = episodeParam + 'S' + str(params.pop('season')).zfill(2) + 'E' + str(params.pop('episode')).zfill(2)
+                return episodeParam
+            searchURL = self._buildSearchURL(fuzzyEpisodeParamBuilder, search_params);
+            logger.log(u"Fuzzy-style search string: " + searchURL, logger.DEBUG)
+            data = self.getURL(searchURL)
 
         if not data:
             return []
-        
+
+        return self._parseKatRSS(data)
+
+    def _buildSearchURL(self, episodeParamBuilder, search_params):
+
+        params = {"rss": "1"}
+
+        if search_params:
+            params.update(search_params)
+
+        searchURL = self.url + 'usearch/'
+
+        # Build the episode search parameter via a delegate
+        # Many of the 'params' here actually belong in the path as name:value pairs.
+        # so we remove the ones we know about (adding them to the path as we do so)
+        searchURL = searchURL + episodeParamBuilder(params)
+
+        if 'date' in params:
+            logger.log(u"Sorry, air by date not supported by kat.  Removing: " + params.pop('date'), logger.WARNING)
+
+        # we probably have an extra %20 at the end of the url.  Not likely to
+        # cause problems, but it is uneeded, so trim it
+        if searchURL.endswith('%20'):
+            searchURL = searchURL[:-3]
+
+        searchURL = searchURL + '%20verified:1/?' + urllib.urlencode(params) # this will likely only append the rss=1 part
+
+        return searchURL
+
+    def _parseKatRSS(self, data):
+
         try:
             parsedXML = parseString(data)
             items = parsedXML.getElementsByTagName('item')
@@ -214,17 +235,17 @@ class KATProvider(generic.TorrentProvider):
             logger.log(u"Error trying to load KAT RSS feed: "+ex(e), logger.ERROR)
             logger.log(u"RSS data: "+data, logger.DEBUG)
             return []
-        
+
         results = []
 
         for curItem in items:
-            
+
             (title, url) = self._get_title_and_url(curItem)
-            
+
             if not title or not url:
                 logger.log(u"The XML returned from the KAT RSS feed is incomplete, this result is unusable: "+data, logger.ERROR)
                 continue
-    
+
             results.append(curItem)
 
         return results
