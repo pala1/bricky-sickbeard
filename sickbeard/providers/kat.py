@@ -37,7 +37,7 @@ class KATProvider(generic.TorrentProvider):
     def __init__(self):
 
         generic.TorrentProvider.__init__(self, "KAT")
-        
+
         self.supportsBacklog = True
 
         self.cache = KATCache(self)
@@ -46,68 +46,68 @@ class KATProvider(generic.TorrentProvider):
 
     def isEnabled(self):
         return sickbeard.KAT
-        
+
     def imageName(self):
         return 'kat.png'
-      
+
     def getQuality(self, item):
-        
+
         #torrent_node = item.getElementsByTagName('torrent')[0]
         #filename_node = torrent_node.getElementsByTagName('title')[0]
         #filename = get_xml_text(filename_node)
-        
+
         # I think the only place we can get anything resembing the filename is in 
         # the title
         filename = helpers.get_xml_text(item.getElementsByTagName('title')[0])
 
         quality = Quality.nameQuality(filename)
-        
+
         return quality
 
     def findSeasonResults(self, show, season):
-        
+
         results = {}
-        
+
         if show.air_by_date:
             logger.log(u"KAT doesn't support air-by-date backlog because of limitations on their RSS search.", logger.WARNING)
             return results
-        
+
         results = generic.TorrentProvider.findSeasonResults(self, show, season)
-        
+
         return results
     def _get_season_search_strings(self, show, season=None):
-    
+
         params = {}
-    
+
         if not show:
             return params
-        
+
         params['show_name'] = helpers.sanitizeSceneName(show.name).replace('.',' ').encode('utf-8')
-          
+
         if season != None:
             params['season'] = season
-    
+
         return [params]
 
     def _get_episode_search_strings(self, ep_obj):
-    
+
         params = {}
-        
+
         if not ep_obj:
             return params
-                   
+
         params['show_name'] = helpers.sanitizeSceneName(ep_obj.show.name).replace('.',' ').encode('utf-8')
-        
+
         if ep_obj.show.air_by_date:
             params['date'] = str(ep_obj.airdate)
         else:
             params['season'] = ep_obj.season
             params['episode'] = ep_obj.episode
-            
+
         logger.log(u"KAT _get_episode_search_strings for %s is returning %s" % (repr(ep_obj), repr(params)), logger.DEBUG)
-    
+
         return [params]
-    
+
     def getURL(self, url, headers=None):
         """
         Overriding here to capture a 404 (which literally means episode-not-found in KAT).
@@ -125,7 +125,7 @@ class KATProvider(generic.TorrentProvider):
             usock = opener.open(url)
             url = usock.geturl()
             encoding = usock.info().get("Content-Encoding")
-    
+
             if encoding in ('gzip', 'x-gzip', 'deflate'):
                 content = usock.read()
                 if encoding == 'deflate':
@@ -133,19 +133,19 @@ class KATProvider(generic.TorrentProvider):
                 else:
                     data = gzip.GzipFile(fileobj=StringIO.StringIO(content))
                 result = data.read()
-    
+
             else:
                 result = usock.read()
-    
+
             usock.close()
-            
+
             return result
-    
+
         except urllib2.HTTPError, e:
             if e.code == 404:
                 # for a 404, we fake an empty result
                 return '<?xml version="1.0" encoding="utf-8"?><rss version="2.0"><channel></channel></rss>'
-            
+
             logger.log(u"HTTP error " + str(e.code) + " while loading URL " + url, logger.ERROR)
             return None
         except urllib2.URLError, e:
@@ -202,7 +202,7 @@ class KATProvider(generic.TorrentProvider):
 
     def _buildSearchURL(self, episodeParamBuilder, search_params):
 
-        params = {"rss": "1"}
+        params = {"rss": "1", "field": "seeders", "sorder": "desc" }
 
         if search_params:
             params.update(search_params)
@@ -212,6 +212,7 @@ class KATProvider(generic.TorrentProvider):
         # Build the episode search parameter via a delegate
         # Many of the 'params' here actually belong in the path as name:value pairs.
         # so we remove the ones we know about (adding them to the path as we do so)
+        # NOTE: episodeParamBuilder is expected to modify the passed 'params' variable by popping params it uses
         searchURL = searchURL + episodeParamBuilder(params)
 
         if 'date' in params:
@@ -246,6 +247,10 @@ class KATProvider(generic.TorrentProvider):
                 logger.log(u"The XML returned from the KAT RSS feed is incomplete, this result is unusable: "+data, logger.ERROR)
                 continue
 
+            if self._get_seeders(curItem) <= 0:
+                logger.log(u"Discarded result with no seeders: " + title, logger.DEBUG)
+                continue
+
             results.append(curItem)
 
         return results
@@ -258,6 +263,9 @@ class KATProvider(generic.TorrentProvider):
 
         return (title, url)
 
+    def _get_seeders(self, item):
+        return int(helpers.get_xml_text(item.getElementsByTagName('torrent:seeds')[0]))
+
     def _extract_name_from_filename(self, filename):
         name_regex = '(.*?)\.?(\[.*]|\d+\.TPB)\.torrent$'
         logger.log(u"Comparing "+name_regex+" against "+filename, logger.DEBUG)
@@ -265,7 +273,7 @@ class KATProvider(generic.TorrentProvider):
         if match:
             return match.group(1)
         return None
-    
+
 #    <item>
 #        <title>James Mays Things You Need To Know S02E06 HDTV XviD-AFG</title>
 #        <description>random text in here</description>        
@@ -310,7 +318,7 @@ class KATCache(tvcache.TVCache):
         if not title or not url:
             logger.log(u"The XML returned from the KAT RSS feed is incomplete, this result is unusable", logger.ERROR)
             return
-        
+
 #        if url and url.startswith('magnet:'):
 #            torrent_url = self.provider.magnetToTorrent(url)
 #            if torrent_url:
@@ -319,7 +327,7 @@ class KATCache(tvcache.TVCache):
 #            else:
 #                logger.log(u"Failed to handle magnet url %s, skipping..." % url, logger.DEBUG)
 #                return
-            
+
         if url and self.provider.urlIsBlacklisted(url):
             logger.log(u"url %s is blacklisted, skipping..." % url, logger.DEBUG)
             return
