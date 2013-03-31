@@ -524,6 +524,7 @@ class IplayerCache(tvcache.TVCache):
 
         # @todo: put in a reasonable 'since' value here, prob calc'ed from self.lastUpdate
         results = Iplayer.get_available_downloads()
+        self._clearCache()
         
         for fkeyed in results:
             fakeFilename, fakeUrl, season, episode, qual, tvdb_id = IplayerProvider.sickbeardify_iplayer_result(fkeyed) 
