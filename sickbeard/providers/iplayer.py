@@ -295,7 +295,66 @@ class Iplayer:
                 '--listformat',
                 '"<' + (('>' + FIELD_SEP + '<').join(IPLAYER_LIST_FIELDNAMES)) + '>"', 
                 '--nocopyright', 
-                #'--since 24', # only shows added in the last 24 hours    
+                '--refresh',   # Refresh cache
+                '--since 24', # only shows added in the last 24 hours
+                ]
+        
+        cmd = " ".join(cmd) # not quite sure why, but Popen doesn't like the list
+        
+        logger.log(u"get_iplayer (cmd) = "+repr(cmd), logger.DEBUG)
+        
+        # we need a shell b/c it's a perl script and it will need to find the 
+        # interpreter
+        os.environ['PYTHONIOENCODING'] = 'utf-8'
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
+                             shell=True, universal_newlines=True) 
+        out, err = p.communicate()
+        
+        #logger.log(u"get_iplayer (out) = "+repr(out), logger.DEBUG)
+        logger.log(u"get_iplayer (err) = "+repr(err), logger.DEBUG)
+        
+        results = []
+        
+        for line in out.splitlines():
+            line = line.decode('utf-8')
+            logger.log(u"Got line: "+repr(line), logger.DEBUG)
+            fields = line.split(FIELD_SEP)
+            
+            if len(fields) != len(IPLAYER_LIST_FIELDNAMES):
+                logger.log(u"Ignoring line '%s', it has the wrong number of fields"%line, 
+                           logger.DEBUG)
+                continue
+            
+            fkeyed = dict((fieldname, fields[IPLAYER_LIST_FIELDNAMES.index(fieldname)]) 
+                          for fieldname in IPLAYER_LIST_FIELDNAMES)
+            
+            # Sometimes pid is preceeded with 'Added: ', if so we remove it
+            if fkeyed['pid'].startswith(u'Added: '):
+                fkeyed['pid'] = fkeyed['pid'][7:]
+            
+            results.append(fkeyed)
+            
+        return results
+    
+    @classmethod
+    def get_available_downloads_for_showname(cls, showName):
+        """
+        Get a list of available downloads from get_iplayer.
+        
+        @param showName: search term (the show, um, name)
+        @return: Returns a list of dicts, each dict being a pid available for 
+                 download.  Each dict will have the keys from 
+                 IPLAYER_LIST_FIELDNAMES
+        """
+        iplayer_path = cls.get_iplayer_path()
+        if iplayer_path is None:
+            return []
+        
+        cmd = [ iplayer_path,
+                '--listformat',
+                '"<' + (('>' + FIELD_SEP + '<').join(IPLAYER_LIST_FIELDNAMES)) + '>"', 
+                '--nocopyright', 
+                '"' + showName + '"',
                 ]
         
         cmd = " ".join(cmd) # not quite sure why, but Popen doesn't like the list
@@ -340,7 +399,7 @@ class IplayerProvider(generic.VODProvider):
 
     def __init__(self):
         generic.VODProvider.__init__(self, "iPlayer")
-        self.supportsBacklog = False
+        self.supportsBacklog = True
         self.cache = IplayerCache(self)
         self.url = 'http://www.bbc.co.uk/iplayer'
 
@@ -354,6 +413,103 @@ class IplayerProvider(generic.VODProvider):
         """
         logger.log(u"Downloading a result from " + self.name+" at " + result.url)
         return Iplayer.download_pid(result.url, True, True)
+    
+    def findSeasonResults(self, show, season):
+        results = {}
+        if show.air_by_date:
+            logger.log(u"iplayer doesn't support air-by-date backlog (or at least this implementation doesn't)", logger.WARNING)
+            return results  
+        results = generic.VODProvider.findSeasonResults(self, show, season)
+        return results
+    
+    
+    def _doSearch(self, search_params, show=None):
+        """
+        A little hackish perhaps, but the only search term we use is the show.name
+        from the show param.
+        """
+        if show is None: 
+            return []
+        
+        logger.log(u"Search for show: " + show.name, logger.DEBUG)
+        
+        items = Iplayer.get_available_downloads_for_showname(show.name)
+        if not items:
+            return []
+        
+        logger.log(u"Got items: " + repr(items), logger.DEBUG)
+        
+        results = []
+        for curItem in items:
+            fakeFilename, fakeUrl, season, episode, qual, tvdb_id = IplayerProvider.sickbeardify_iplayer_result(curItem)
+            results.append({
+                'filename': fakeFilename,
+                'url': fakeUrl,
+                'season': season,
+                'episode': episode,
+                'quality': qual,
+                'tvdb_id': tvdb_id,
+                            }) 
+
+        return results
+    
+    def _get_title_and_url(self, item):
+        """
+        Retrieves the title and URL data from a key-pair iplayer result line
+        (this shouldn't really be necessary, but I couldn't be bothered rewriting
+        all the crap that uses it. sorry)
+        """
+        return (item['filename'], item['url'])
+    
+    def getQuality(self, item):
+        """
+        Figures out the quality of the key-pair iplayer result line
+        (again, makes little sense now)
+        """
+        return item['quality']
+    
+    @classmethod
+    def sickbeardify_iplayer_result(cls, item):
+        """
+        Turn an iplayer result (with keys: episodenum, seriesnum, name, episode, categories, pid)
+        into something that sickbeard would understand, a list with:
+        filename, url, season, episode, quality, and tvdb_id
+        """
+        if item['episodenum'] is u'':
+            episode = None
+        else:
+            episode = int(item['episodenum'])
+        
+        # if the seriesnum is blank, make is series 1 (that's how tvdb works)
+        if item['seriesnum'] is u'':
+            season = 1
+        else:
+            season = int(item['seriesnum'])
+            
+        # often the 'name' will have the series number tagged onto the end
+        match = re.match('^(?P<showname>.*): Series ' + item['seriesnum'] + '$', item['name'], re.IGNORECASE)
+        if match:
+            item['name'] = match.group('showname')
+        
+        if episode is None:
+            filename = None
+        else:
+            filename = u'%s S%dE%d - %s' % (item['name'], season, episode, item['episode'])
+        fakeUrl = item['pid']
+        
+        # it looks like anything available in HD has 'HD' in the categories.
+        # so use that as our quality flag
+        cats = item['categories'].split(',')
+        if u'HD' in cats:
+            qual = Quality.HDWEBDL
+        else:
+            qual = Quality.SDTV
+            
+        # get the tvdb_id also (SB has some trouble identifying the series here otherwise)
+        tvdb_id = NameParser.series_name_to_tvdb_id(item['name'])
+
+        return filename, fakeUrl, season, episode, qual, tvdb_id
+
 
 class IplayerCache(tvcache.TVCache):
 
@@ -370,39 +526,11 @@ class IplayerCache(tvcache.TVCache):
         results = Iplayer.get_available_downloads()
         
         for fkeyed in results:
-
-            # for now we ignore anything that doesn't have an episodenum (yes, we'll miss ABD b/c of this)
-            if fkeyed['episodenum'] is u'':
-                continue
-            
-            # if the seriesnum is blank, make is series 1 (that's how tvdb works)
-            if fkeyed['seriesnum'] is u'':
-                fkeyed['seriesnum'] = u'1'
-                
-            # often the 'name' will have the series number tagged onto the end
-            match = re.match('^(?P<showname>.*): Series ' + fkeyed['seriesnum'] + '$', fkeyed['name'], re.IGNORECASE)
-            if match:
-                fkeyed['name'] = match.group('showname')
-                
-            logger.log(repr(fkeyed), logger.DEBUG)
-            
-            fakeFilename = u'%s S%sE%s - %s' % (fkeyed['name'], fkeyed['seriesnum'], fkeyed['episodenum'], fkeyed['episode'])
-            fakeUrl = fkeyed['pid']
-            
-            # it looks like anything available in HD has 'HD' in the categories.
-            # so use that as our quality flag
-            cats = fkeyed['categories'].split(',')
-            if u'HD' in cats:
-                qual = Quality.HDWEBDL
-            else:
-                qual = Quality.SDTV
-                
-            # get the tvdb_id also (SB has some trouble identifying the series here otherwise)
-            tvdb_id = NameParser.series_name_to_tvdb_id(fkeyed['name'])
-            
-            logger.log(u"Adding item from iPlayer to cache: "+fakeFilename, logger.DEBUG)
-            self._addCacheEntry(name=fakeFilename, url=fakeUrl, season=int(fkeyed['seriesnum']),
-                                episodes=[int(fkeyed['episodenum'])], quality=qual,
+            fakeFilename, fakeUrl, season, episode, qual, tvdb_id = IplayerProvider.sickbeardify_iplayer_result(fkeyed) 
+            if fakeFilename is None:
+                continue # can't add without at least a filename
+            self._addCacheEntry(name=fakeFilename, url=fakeUrl, season=season,
+                                episodes=[episode], quality=qual,
                                 tvdb_id=tvdb_id)
             
         self.setLastUpdate()  # record the feed as being updated
