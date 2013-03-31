@@ -38,11 +38,8 @@ class ShowRssProvider(generic.TorrentProvider):
     def __init__(self):
 
         generic.TorrentProvider.__init__(self, "ShowRSS")
-        
         self.supportsBacklog = True
-
         self.cache = ShowRssCache(self)
-
         self.url = 'http://showrss.karmorra.info/'
 
     def isEnabled(self):
@@ -54,15 +51,11 @@ class ShowRssProvider(generic.TorrentProvider):
     def findSeasonResults(self, show, season):
         
         #logger.log(u'ShowRssProvider.findSeasonResults ' + str(show) + ' Season: ' + str(season), logger.DEBUG)
-        
         results = {}
-        
         if show.air_by_date:
             logger.log(u"ShowRSS doesn't support air-by-date backlog", logger.WARNING)
-            return results
-        
+            return results  
         results = generic.TorrentProvider.findSeasonResults(self, show, season)
-        
         return results
     
     
