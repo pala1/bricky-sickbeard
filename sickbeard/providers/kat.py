@@ -199,10 +199,12 @@ class KATProvider(generic.TorrentProvider):
         if not data or data == '<?xml version="1.0" encoding="utf-8"?><rss version="2.0"><channel></channel></rss>':
             def fuzzyEpisodeParamBuilder(params):
                 episodeParam = ''
-                if not 'show_name' in params or not 'season' in params or not 'episode' in params:
+                if not 'show_name' in params or not 'season' in params:
                     return ''
                 episodeParam = episodeParam + urllib.quote('"' + params.pop('show_name') + '"') + "%20"
-                episodeParam = episodeParam + 'S' + str(params.pop('season')).zfill(2) + 'E' + str(params.pop('episode')).zfill(2)
+                episodeParam = episodeParam + 'S' + str(params.pop('season')).zfill(2)
+                if 'episode' in params:
+                    episodeParam += 'E' + str(params.pop('episode')).zfill(2)
                 return episodeParam
             searchURL = self._buildSearchURL(fuzzyEpisodeParamBuilder, search_params);
             logger.log(u"Fuzzy-style search string: " + searchURL, logger.DEBUG)
