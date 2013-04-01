@@ -31,6 +31,7 @@ from sickbeard import logger
 from sickbeard import tvcache
 from sickbeard import helpers
 from sickbeard.exceptions import ex
+from sickbeard import scene_exceptions
 
 class KATProvider(generic.TorrentProvider):
 
@@ -94,7 +95,7 @@ class KATProvider(generic.TorrentProvider):
         params = {}
 
         if not ep_obj:
-            return params
+            return [params]
 
         params['show_name'] = helpers.sanitizeSceneName(ep_obj.show.name).replace('.',' ').encode('utf-8')
 
@@ -104,9 +105,21 @@ class KATProvider(generic.TorrentProvider):
             params['season'] = ep_obj.season
             params['episode'] = ep_obj.episode
 
+        to_return = [params]
+
+        # add new query strings for exceptions
+        name_exceptions = scene_exceptions.get_scene_exceptions(ep_obj.show.tvdbid)
+        for name_exception in name_exceptions:
+            # don't add duplicates
+            if name_exception != ep_obj.show.name:
+                # only change show name
+                cur_return = params.copy()
+                cur_return['show_name'] = helpers.sanitizeSceneName(name_exception)
+                to_return.append(cur_return)
+
         logger.log(u"KAT _get_episode_search_strings for %s is returning %s" % (repr(ep_obj), repr(params)), logger.DEBUG)
 
-        return [params]
+        return to_return
 
     def getURL(self, url, headers=None):
         """
