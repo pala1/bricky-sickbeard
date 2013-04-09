@@ -213,25 +213,25 @@ class DailyTvTorrentsProvider(generic.TorrentProvider):
             if e.code == 404:
                 # for a 404, we fake an empty result
                 return None
-            logger.log(u"HTTP error " + str(e.code) + " while loading URL " + url, logger.ERROR)
+            logger.log(u"HTTP error " + str(e.code) + " while calling DailyTvTorrents api " + fnName, logger.ERROR)
             return None
         except urllib2.URLError, e:
-            logger.log(u"URL error " + str(e.reason) + " while loading URL " + url, logger.ERROR)
+            logger.log(u"URL error " + str(e.reason) + " while calling DailyTvTorrents api " + fnName, logger.ERROR)
             return None
         except BadStatusLine:
-            logger.log(u"BadStatusLine error while loading URL " + url, logger.ERROR)
+            logger.log(u"BadStatusLine error while calling DailyTvTorrents api " + fnName, logger.ERROR)
             return None
         except socket.timeout:
-            logger.log(u"Timed out while loading URL " + url, logger.ERROR)
+            logger.log(u"Timed out while calling DailyTvTorrents api " + fnName, logger.ERROR)
             return None
         except ValueError:
-            logger.log(u"Unknown error while loading URL " + url, logger.ERROR)
+            logger.log(u"Unknown error while calling DailyTvTorrents api " + fnName, logger.ERROR)
             return None
         except IOError, e:
             logger.log(u"Error trying to communicate with dailytvtorrents: "+repr(e), logger.ERROR)
             return None
         except Exception:
-            logger.log(u"Unknown exception while loading URL " + url + ": " + traceback.format_exc(), logger.ERROR)
+            logger.log(u"Unknown exception while calling DailyTvTorrents api " + fnName + ": " + traceback.format_exc(), logger.ERROR)
             return None
     
     _simple_show_names = dict() # populated as needed, saves repeated lookups
