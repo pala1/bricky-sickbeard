@@ -41,7 +41,7 @@ from lib.hachoir_parser import createParser
 
 from sickbeard.name_parser.parser import NameParser, InvalidNameException
 
-class GenericProvider:
+class GenericProvider(object):
 
     NZB = "nzb"
     TORRENT = "torrent"
@@ -176,13 +176,15 @@ class GenericProvider:
             #    d8:announce
             # So instead of messing with buggy parsers (as was done here before)
             # we just check for this magic instead.
+            # Note that a significant minority of torrents have a not-so-magic of "d12:_info_length",
+            # which while not explicit in the spec is valid bencode and works with Transmission and uTorrent.
             try:
                 with open(file_name, "rb") as f:
-                    magic = f.read(11)
-                    if magic == "d8:announce":
+                    magic = f.read(16)
+                    if magic[:11] == "d8:announce" or magic == "d12:_info_length":
                         return True
                     else:
-                        logger.log("Magic number for %s is not 'd8:announce' got '%s' instead" % (file_name, magic), logger.WARNING)
+                        logger.log("Magic number for %s is neither 'd8:announce' nor 'd12:_info_length', got '%s' instead" % (file_name, magic), logger.WARNING)
                         #logger.log(f.read())
                         return False
             except Exception, eparser:
@@ -491,8 +493,8 @@ class TorrentProvider(GenericProvider):
         """
         Overridden to handle magnet links (using multiple fallbacks)
         """
-        logger.log(u"Downloading a result from " + self.name+" at " + result.url)
-        
+
+        # If we have a magnet URL, extract all torrent URLs from it
         if result.url and result.url.startswith('magnet:'):
             torrent_hash = self.getHashFromMagnet(result.url)
             if torrent_hash:
@@ -502,39 +504,15 @@ class TorrentProvider(GenericProvider):
                 return False
         else:
             urls = [result.url]
-            
-        # use the result name as the filename
-        fileName = ek.ek(os.path.join, sickbeard.TORRENT_DIR, helpers.sanitizeFileName(result.name) + '.' + self.providerType)
-            
+
+        # iterate each torrent URL until we have a successful download
         for url in urls:
-            logger.log(u"Trying d/l url: " + url, logger.DEBUG)
-            data = self.getURL(url)
-            
-            if data == None:
-                logger.log(u"Got no data for " + url, logger.DEBUG)
-                # fall through to next iteration
-            elif not data.startswith("d8:announce"):
-                logger.log(u"d/l url %s failed, not a valid torrent file" % (url), logger.MESSAGE)
-            else:
-                try:
-                    fileOut = open(fileName, 'wb')
-                    fileOut.write(data)
-                    fileOut.close()
-                    helpers.chmodAsParent(fileName)
-                except IOError, e:
-                    logger.log("Unable to save the file: "+ex(e), logger.ERROR)
-                    return False
-                
-                logger.log(u"Success with url: " + url, logger.DEBUG)
+            result.url = url
+            if super(TorrentProvider, self).downloadResult(result):
                 return True
-        else:
-            logger.log(u"All d/l urls have failed.  Sorry.", logger.MESSAGE)
-            return False
-        
-        
+
+        logger.log(u"All download urls have failed.  Sorry.", logger.MESSAGE)
         return False
-
-
 
 class VODProvider(GenericProvider):
     """
