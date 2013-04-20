@@ -383,7 +383,7 @@ class DailyTvTorrentsCache(tvcache.TVCache):
             elif title.endswith(' [720]'):
                 quality = Quality.HDTV
             elif title.endswith(' [1080]'):
-                quality = Quality.FULLHDBLURAY # best choice available I think
+                quality = Quality.FULLHDTV # best choice available I think
             else:
                 quality = None # just fall through to sb quality processing
         else:
