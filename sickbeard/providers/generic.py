@@ -41,7 +41,7 @@ from lib.hachoir_parser import createParser
 
 from sickbeard.name_parser.parser import NameParser, InvalidNameException
 
-class GenericProvider(object):
+class GenericProvider:
 
     NZB = "nzb"
     TORRENT = "torrent"
@@ -493,8 +493,8 @@ class TorrentProvider(GenericProvider):
         """
         Overridden to handle magnet links (using multiple fallbacks)
         """
-
-        # If we have a magnet URL, extract all torrent URLs from it
+        logger.log(u"Downloading a result from " + self.name+" at " + result.url)
+        
         if result.url and result.url.startswith('magnet:'):
             torrent_hash = self.getHashFromMagnet(result.url)
             if torrent_hash:
@@ -504,15 +504,39 @@ class TorrentProvider(GenericProvider):
                 return False
         else:
             urls = [result.url]
-
-        # iterate each torrent URL until we have a successful download
+            
+        # use the result name as the filename
+        fileName = ek.ek(os.path.join, sickbeard.TORRENT_DIR, helpers.sanitizeFileName(result.name) + '.' + self.providerType)
+            
         for url in urls:
-            result.url = url
-            if super(TorrentProvider, self).downloadResult(result):
+            logger.log(u"Trying d/l url: " + url, logger.DEBUG)
+            data = self.getURL(url)
+            
+            if data == None:
+                logger.log(u"Got no data for " + url, logger.DEBUG)
+                # fall through to next iteration
+            elif not data.startswith("d8:announce") and not data.startswith("d12:_info_length"):
+                logger.log(u"d/l url %s failed, not a valid torrent file" % (url), logger.MESSAGE)
+            else:
+                try:
+                    fileOut = open(fileName, 'wb')
+                    fileOut.write(data)
+                    fileOut.close()
+                    helpers.chmodAsParent(fileName)
+                except IOError, e:
+                    logger.log("Unable to save the file: "+ex(e), logger.ERROR)
+                    return False
+                
+                logger.log(u"Success with url: " + url, logger.DEBUG)
                 return True
-
-        logger.log(u"All download urls have failed.  Sorry.", logger.MESSAGE)
+        else:
+            logger.log(u"All d/l urls have failed.  Sorry.", logger.MESSAGE)
+            return False
+        
+        
         return False
+
+
 
 class VODProvider(GenericProvider):
     """
