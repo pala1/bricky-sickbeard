@@ -31,6 +31,7 @@ from sickbeard import logger
 from sickbeard import tvcache
 from sickbeard import helpers
 from sickbeard.exceptions import ex
+from sickbeard import scene_exceptions
 
 class KATProvider(generic.TorrentProvider):
 
@@ -94,8 +95,8 @@ class KATProvider(generic.TorrentProvider):
         params = {}
         
         if not ep_obj:
-            return params
-                   
+            return [params]
+
         params['show_name'] = helpers.sanitizeSceneName(ep_obj.show.name).replace('.',' ').encode('utf-8')
         
         if ep_obj.show.air_by_date:
@@ -103,11 +104,23 @@ class KATProvider(generic.TorrentProvider):
         else:
             params['season'] = ep_obj.season
             params['episode'] = ep_obj.episode
-            
+
+        to_return = [params]
+
+        # add new query strings for exceptions
+        name_exceptions = scene_exceptions.get_scene_exceptions(ep_obj.show.tvdbid)
+        for name_exception in name_exceptions:
+            # don't add duplicates
+            if name_exception != ep_obj.show.name:
+                # only change show name
+                cur_return = params.copy()
+                cur_return['show_name'] = helpers.sanitizeSceneName(name_exception)
+                to_return.append(cur_return)
+
         logger.log(u"KAT _get_episode_search_strings for %s is returning %s" % (repr(ep_obj), repr(params)), logger.DEBUG)
-    
-        return [params]
-    
+
+        return to_return
+
     def getURL(self, url, headers=None):
         """
         Overriding here to capture a 404 (which literally means episode-not-found in KAT).
@@ -186,10 +199,12 @@ class KATProvider(generic.TorrentProvider):
         if not data or data == '<?xml version="1.0" encoding="utf-8"?><rss version="2.0"><channel></channel></rss>':
             def fuzzyEpisodeParamBuilder(params):
                 episodeParam = ''
-                if not 'show_name' in params or not 'season' in params or not 'episode' in params:
+                if not 'show_name' in params or not 'season' in params:
                     return ''
                 episodeParam = episodeParam + urllib.quote('"' + params.pop('show_name') + '"') + "%20"
-                episodeParam = episodeParam + 'S' + str(params.pop('season')).zfill(2) + 'E' + str(params.pop('episode')).zfill(2)
+                episodeParam = episodeParam + 'S' + str(params.pop('season')).zfill(2)
+                if 'episode' in params:
+                    episodeParam += 'E' + str(params.pop('episode')).zfill(2)
                 return episodeParam
             searchURL = self._buildSearchURL(fuzzyEpisodeParamBuilder, search_params);
             logger.log(u"Fuzzy-style search string: " + searchURL, logger.DEBUG)
@@ -202,7 +217,7 @@ class KATProvider(generic.TorrentProvider):
 
     def _buildSearchURL(self, episodeParamBuilder, search_params):
 
-        params = {"rss": "1"}
+        params = {"rss": "1", "field": "seeders", "sorder": "desc" }
 
         if search_params:
             params.update(search_params)
@@ -212,6 +227,7 @@ class KATProvider(generic.TorrentProvider):
         # Build the episode search parameter via a delegate
         # Many of the 'params' here actually belong in the path as name:value pairs.
         # so we remove the ones we know about (adding them to the path as we do so)
+        # NOTE: episodeParamBuilder is expected to modify the passed 'params' variable by popping params it uses
         searchURL = searchURL + episodeParamBuilder(params)
 
         if 'date' in params:
@@ -246,6 +262,10 @@ class KATProvider(generic.TorrentProvider):
                 logger.log(u"The XML returned from the KAT RSS feed is incomplete, this result is unusable: "+data, logger.ERROR)
                 continue
 
+            if self._get_seeders(curItem) <= 0:
+                logger.log(u"Discarded result with no seeders: " + title, logger.DEBUG)
+                continue
+
             results.append(curItem)
 
         return results
@@ -257,6 +277,9 @@ class KATProvider(generic.TorrentProvider):
         url = item.getElementsByTagName('enclosure')[0].getAttribute('url').replace('&amp;','&')
 
         return (title, url)
+
+    def _get_seeders(self, item):
+        return int(helpers.get_xml_text(item.getElementsByTagName('torrent:seeds')[0]))
 
     def _extract_name_from_filename(self, filename):
         name_regex = '(.*?)\.?(\[.*]|\d+\.TPB)\.torrent$'
