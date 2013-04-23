@@ -1123,6 +1123,8 @@ class ConfigProviders:
                 sickbeard.KAT = curEnabled
             elif curProvider == 'dailytvtorrents':
                 sickbeard.DAILYTVTORRENTS = curEnabled
+            elif curProvider == 'publichd':
+                sickbeard.PUBLICHD = curEnabled
             elif curProvider == 'iplayer':
                 sickbeard.IPLAYER = curEnabled
             elif curProvider in newznabProviderDict:

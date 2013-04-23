@@ -31,7 +31,7 @@ from threading import Lock
 # apparently py2exe won't build these unless they're imported somewhere
 from sickbeard import providers, metadata
 from providers import ezrss, tvtorrents, torrentleech, btn, nzbsrus, newznab, womble, nzbx, omgwtfnzbs
-from providers import showrss, kat, dailytvtorrents, iplayer
+from providers import showrss, kat, dailytvtorrents, iplayer, publichd
 from sickbeard.config import CheckSection, check_setting_int, check_setting_str, ConfigMigrator
 
 from sickbeard import searchCurrent, searchBacklog, showUpdater, versionChecker, properFinder, autoPostProcesser
@@ -159,6 +159,7 @@ EZRSS = False
 SHOWRSS = False
 KAT = False
 DAILYTVTORRENTS = False
+PUBLICHD = False
 TVTORRENTS = False
 TVTORRENTS_DIGEST = None
 TVTORRENTS_HASH = None
@@ -342,7 +343,7 @@ def initialize(consoleLogging=True):
                 USE_PLEX, PLEX_NOTIFY_ONSNATCH, PLEX_NOTIFY_ONDOWNLOAD, PLEX_UPDATE_LIBRARY, \
                 PLEX_SERVER_HOST, PLEX_HOST, PLEX_USERNAME, PLEX_PASSWORD, \
                 showUpdateScheduler, __INITIALIZED__, LAUNCH_BROWSER, showList, loadingShowList, \
-                SHOWRSS, KAT, DAILYTVTORRENTS, \
+                SHOWRSS, KAT, DAILYTVTORRENTS, PUBLICHD, \
                 NZBS, NZBS_UID, NZBS_HASH, EZRSS, TVTORRENTS, TVTORRENTS_DIGEST, TVTORRENTS_HASH, BTN, BTN_API_KEY, TORRENTLEECH, TORRENTLEECH_KEY, \
                 TORRENT_DIR, USENET_RETENTION, SOCKET_TIMEOUT, \
                 SEARCH_FREQUENCY, DEFAULT_SEARCH_FREQUENCY, BACKLOG_SEARCH_FREQUENCY, \
@@ -561,6 +562,9 @@ def initialize(consoleLogging=True):
         
         CheckSection(CFG, 'DAILYTVTORRENTS')
         DAILYTVTORRENTS = bool(check_setting_int(CFG, 'DAILYTVTORRENTS', 'dailytvtorrents', 0))
+        
+        CheckSection(CFG, 'PUBLICHD')
+        PUBLICHD = bool(check_setting_int(CFG, 'PUBLICHD', 'publichd', 0))
 
         CheckSection(CFG, 'TVTORRENTS')
         TVTORRENTS = bool(check_setting_int(CFG, 'TVTORRENTS', 'tvtorrents', 0))
@@ -1065,6 +1069,9 @@ def save_config():
     
     new_config['DAILYTVTORRENTS'] = {}
     new_config['DAILYTVTORRENTS']['dailytvtorrents'] = int(DAILYTVTORRENTS)
+    
+    new_config['PUBLICHD'] = {}
+    new_config['PUBLICHD']['publichd'] = int(PUBLICHD)
     
     new_config['KAT'] = {}
     new_config['KAT']['kat'] = int(KAT)
