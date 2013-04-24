@@ -38,7 +38,7 @@ from os import sys
 
 def sortedProviderList():
 
-    initialList = sickbeard.providerList + sickbeard.newznabProviderList
+    initialList = sickbeard.providerList + sickbeard.newznabProviderList + sickbeard.anyRssProviderList
     providerDict = dict(zip([x.getID() for x in initialList], initialList))
 
     newList = []
@@ -104,6 +104,16 @@ def makeNewznabProvider(configString):
 
     return newProvider
 
+def getAnyRssProviderList(data):
+    providerList = filter(lambda x: x, [makeAnyRssProvider(x) for x in data.split('!!!')])
+    return filter(lambda x: x, providerList)
+
+def makeAnyRssProvider(configString):
+    if not configString:
+        return None
+    anyrss = sys.modules['sickbeard.providers.anyrss']
+    return anyrss.AnyRssProvider.fromConfigStr(configString)
+
 
 def getDefaultNewznabProviders():
     return 'Sick Beard Index|http://lolo.sickbeard.com/|0|0!!!NZBs.org|http://nzbs.org/||0!!!Usenet-Crawler|http://www.usenet-crawler.com/||0'
@@ -120,7 +130,7 @@ def getProviderModule(name):
 
 def getProviderClass(providerID):
 
-    providerMatch = [x for x in sickbeard.providerList + sickbeard.newznabProviderList if x.getID() == providerID]
+    providerMatch = [x for x in sickbeard.providerList + sickbeard.newznabProviderList + sickbeard.anyRssProviderList if x.getID() == providerID]
 
     if len(providerMatch) != 1:
         return None

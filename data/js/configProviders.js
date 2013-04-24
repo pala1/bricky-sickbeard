@@ -37,6 +37,28 @@ $(document).ready(function(){
         $(this).makeNewznabProviderString();
 
     }
+    
+    $.fn.addAnyRssProvider = function (id, name, url) {
+
+        var newData = [isDefault, [name, url, key]];
+        newznabProviders[id] = newData;
+
+        if (!isDefault)
+        {
+            $('#editANewznabProvider').addOption(id, name);
+            $(this).populateNewznabSection();
+        }
+
+        if ($('#providerOrderList > #'+id).length == 0) {
+            var toAdd = '<li class="ui-state-default" id="'+id+'"> <input type="checkbox" id="enable_'+id+'" class="provider_enabler" CHECKED> <a href="'+url+'" class="imgLink" target="_new"><img src="'+sbRoot+'/images/providers/newznab.gif" alt="'+name+'" width="16" height="16"></a> '+name+'</li>'
+
+            $('#providerOrderList').append(toAdd);
+            $('#providerOrderList').sortable("refresh");
+        }
+
+        $(this).makeNewznabProviderString();
+
+    }
 
     $.fn.updateProvider = function (id, url, key) {
 

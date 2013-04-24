@@ -31,7 +31,7 @@ from threading import Lock
 # apparently py2exe won't build these unless they're imported somewhere
 from sickbeard import providers, metadata
 from providers import ezrss, tvtorrents, torrentleech, btn, nzbsrus, newznab, womble, nzbx, omgwtfnzbs
-from providers import showrss, kat, dailytvtorrents, iplayer, publichd
+from providers import showrss, kat, dailytvtorrents, iplayer, publichd, anyrss
 from sickbeard.config import CheckSection, check_setting_int, check_setting_str, ConfigMigrator
 
 from sickbeard import searchCurrent, searchBacklog, showUpdater, versionChecker, properFinder, autoPostProcesser
@@ -83,6 +83,7 @@ loadingShowList = None
 
 providerList = []
 newznabProviderList = []
+anyRssProviderList = []
 metadata_provider_dict = {}
 
 NEWEST_VERSION = None
@@ -358,6 +359,7 @@ def initialize(consoleLogging=True):
                 NAMING_PATTERN, NAMING_MULTI_EP, NAMING_FORCE_FOLDERS, NAMING_ABD_PATTERN, NAMING_CUSTOM_ABD, \
                 RENAME_EPISODES, properFinderScheduler, PROVIDER_ORDER, autoPostProcesserScheduler, \
                 NZBSRUS, NZBSRUS_UID, NZBSRUS_HASH, WOMBLE, NZBX, NZBX_COMPLETION, OMGWTFNZBS, OMGWTFNZBS_UID, OMGWTFNZBS_KEY, providerList, newznabProviderList, \
+                anyRssProviderList, \
                 EXTRA_SCRIPTS, USE_TWITTER, TWITTER_USERNAME, TWITTER_PASSWORD, TWITTER_PREFIX, \
                 USE_NOTIFO, NOTIFO_USERNAME, NOTIFO_APISECRET, NOTIFO_NOTIFY_ONDOWNLOAD, NOTIFO_NOTIFY_ONSNATCH, \
                 USE_BOXCAR, BOXCAR_USERNAME, BOXCAR_PASSWORD, BOXCAR_NOTIFY_ONDOWNLOAD, BOXCAR_NOTIFY_ONSNATCH, \
@@ -548,6 +550,11 @@ def initialize(consoleLogging=True):
         CheckSection(CFG, 'Newznab')
         newznabData = check_setting_str(CFG, 'Newznab', 'newznab_data', '')
         newznabProviderList = providers.getNewznabProviderList(newznabData)
+        
+        CheckSection(CFG, 'AnyRss')
+        anyRssData = check_setting_str(CFG, 'AnyRss', 'anyrss_data', '')
+        anyRssProviderList = providers.getAnyRssProviderList(anyRssData)
+        
         providerList = providers.makeProviderList()
 
         CheckSection(CFG, 'Blackhole')
@@ -1242,6 +1249,9 @@ def save_config():
 
     new_config['Newznab'] = {}
     new_config['Newznab']['newznab_data'] = '!!!'.join([x.configStr() for x in newznabProviderList])
+    
+    new_config['AnyRss'] = {}
+    new_config['AnyRss']['anyrss_data'] = '!!!'.join([x.configStr() for x in anyRssProviderList])
 
     new_config['GUI'] = {}
     new_config['GUI']['coming_eps_layout'] = COMING_EPS_LAYOUT

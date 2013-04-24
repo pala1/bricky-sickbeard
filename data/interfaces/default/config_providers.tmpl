@@ -18,6 +18,9 @@
 #for $curNewznabProvider in $sickbeard.newznabProviderList:
     \$(this).addProvider('$curNewznabProvider.getID()', '$curNewznabProvider.name', '$curNewznabProvider.url', '$curNewznabProvider.key', $int($curNewznabProvider.default));
 #end for
+#for $curAnyRssProvider in $sickbeard.anyRssProviderList:
+    \$(this).addAnyRssProvider('$curAnyRssProvider.getID()', '$curAnyRssProvider.name', '$curAnyRssProvider.url');
+#end for
 });
 //-->
 </script>
