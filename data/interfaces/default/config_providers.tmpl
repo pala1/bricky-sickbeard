@@ -18,6 +18,15 @@
 #for $curNewznabProvider in $sickbeard.newznabProviderList:
     \$(this).addProvider('$curNewznabProvider.getID()', '$curNewznabProvider.name', '$curNewznabProvider.url', '$curNewznabProvider.key', $int($curNewznabProvider.default));
 #end for
+});
+//-->
+</script>
+#end if
+
+#if $sickbeard.USE_TORRENTS
+<script type="text/javascript" charset="utf-8">
+<!--
+\$(document).ready(function(){
 #for $curAnyRssProvider in $sickbeard.anyRssProviderList:
     \$(this).addAnyRssProvider('$curAnyRssProvider.getID()', '$curAnyRssProvider.name', '$curAnyRssProvider.url');
 #end for
@@ -255,6 +264,55 @@
                     </fieldset>
                 </div><!-- /component-group3 //-->
 #end if
+
+#if $sickbeard.USE_TORRENTS:
+
+                <div id="core-component-group4" class="component-group clearfix">
+
+                    <div class="component-group-desc">
+                        <h3>Configure Custom Torrent RSS Providers</h3>
+                        <p>Add and setup custom RSS providers.</p>
+                        <p style="color: red; font-weight: bold">EXPERIMENTAL</p>
+                    </div>
+
+                    <fieldset class="component-group-list">
+                        <div class="field-pair">
+                            <label class="clearfix">
+                                <span class="component-title jumbo">Select Provider:</span>
+                                <span class="component-desc">
+                                    <input type="hidden" name="anyrss_string" id="anyrss_string" />
+                                    <select id="editAAnyRssProvider">
+                                        <option value="addAnyRss">-- add new provider --</option>
+                                    </select>
+                                </span>
+                            </label>
+                        </div>
+
+<div class="anyRssProviderDiv" id="addAnyRss">
+                        <div class="field-pair">
+                            <label class="nocheck clearfix">
+                                <span class="component-title">Provider Name</span>
+                                <input class="component-desc" type="text" id="anyrss_name" size="40" />
+                            </label>
+                        </div>
+                        <div class="field-pair">
+                            <label class="nocheck clearfix">
+                                <span class="component-title">RSS URL</span>
+                                <input class="component-desc" type="text" id="anyrss_url" size="40" />
+                            </label>
+                        </div>
+            <div id="anyrss_add_div">
+                <input type="button" class="btn anyrss_save" id="anyrss_add" value="Add" />
+            </div>
+            <div id="anyrss_update_div" style="display: none;">
+                <input type="button" class="btn btn-danger anyrss_delete" id="anyrss_delete" value="Delete" />
+            </div>
+</div>
+
+                    </fieldset>
+                </div><!-- /component-group4 //-->
+#end if
+
                 <div class="component-group-save">
                     <input type="submit" class="btn config_submitter" value="Save Changes" />
                 </div><br />

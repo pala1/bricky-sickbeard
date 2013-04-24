@@ -51,8 +51,6 @@ class AnyRssProvider(generic.TorrentProvider):
         return p
 
     def imageName(self):
-        if ek.ek(os.path.isfile, ek.ek(os.path.join, sickbeard.PROG_DIR, 'data', 'images', 'providers', self.getID() + '.png')):
-            return self.getID() + '.png'
         return 'anyrss.png'
 
     def isEnabled(self):

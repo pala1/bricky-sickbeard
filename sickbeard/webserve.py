@@ -996,14 +996,14 @@ class ConfigProviders:
             return json.dumps({'success': tempProvider.getID()})
         
     @cherrypy.expose
-    def canAddAnyRssProvider(self, name):
+    def canAddAnyRssProvider(self, name, url):
 
         if not name:
             return json.dumps({'error': 'Invalid name specified'})
 
         providerDict = dict(zip([x.getID() for x in sickbeard.anyRssProviderList], sickbeard.anyRssProviderList))
 
-        tempProvider = anyrss.AnyRssProvider(name, '')
+        tempProvider = anyrss.AnyRssProvider(name, url)
 
         if tempProvider.getID() in providerDict:
             return json.dumps({'error': 'Exists as '+providerDict[tempProvider.getID()].name})
@@ -1139,13 +1139,16 @@ class ConfigProviders:
                 if curProvider.getID() not in finishedNames:
                     sickbeard.newznabProviderList.remove(curProvider)
                     
+        finishedNames = []
+        #logger.log(u"anyrss_string =  " + anyrss_string)
+                    
         if anyrss_string:
             for curAnyRssProviderStr in anyrss_string.split('!!!'):
     
                 if not curAnyRssProviderStr:
                     continue
     
-                curName, curURL = curAnyRssProviderStr.split('|')
+                curName, curURL = curAnyRssProviderStr.split('|||')
     
                 newProvider = anyrss.AnyRssProvider(curName, curURL)
     
@@ -1160,10 +1163,11 @@ class ConfigProviders:
     
                 finishedNames.append(curID)
     
-            # delete anything that is missing
-            for curProvider in sickbeard.anyRssProviderList:
-                if curProvider.getID() not in finishedNames:
-                    sickbeard.anyRssProviderList.remove(curProvider)
+        # delete anything that is missing
+        #logger.log(u"sickbeard.anyRssProviderList =  " + repr(sickbeard.anyRssProviderList))
+        for curProvider in sickbeard.anyRssProviderList:
+            if curProvider.getID() not in finishedNames:
+                sickbeard.anyRssProviderList.remove(curProvider)
 
         # do the enable/disable
         for curProviderStr in provider_str_list:
