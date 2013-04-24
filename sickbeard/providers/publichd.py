@@ -18,6 +18,7 @@
 
 import sickbeard
 import generic
+import re
 
 from sickbeard import helpers, logger, exceptions, tvcache
 
@@ -42,7 +43,14 @@ class PublicHdProvider(generic.TorrentProvider):
         url = item.getElementsByTagName('enclosure')[0].getAttribute('url').replace('&amp;','&')
         if title.startswith('[TORRENT] '):
             title = title[10:]    
-        
+            
+        # these guys also get creative with the torrent names, adding crud at the 
+        # end like "[PublicHD]", "[P2PDL]" etc. which confuses sb.  Best to
+        # just remove it if present
+        crudAtEndMatch = re.match(r'(.*) \[\w+\]$', title)
+        if crudAtEndMatch:
+            title = crudAtEndMatch.group(1)
+                    
         return (title, url)
     
     def isValidCategory(self, item):
