@@ -17,6 +17,7 @@
 
 
 import os
+import xml.dom.minidom
 
 import sickbeard
 import generic
@@ -26,6 +27,7 @@ from sickbeard import encodingKludge as ek
 
 from sickbeard import logger
 from sickbeard import tvcache
+from sickbeard.exceptions import ex
 
 CONFIG_SEP = '|||'
 
@@ -95,6 +97,51 @@ class AnyRssProvider(generic.TorrentProvider):
             url = url.replace('&amp;','&')
 
         return (title, url)
+    
+    def verifyRss(self):
+        """Runs some basic validation on the rss url.
+        @return: (bool, string) Returns a tuple.  The bool indicates success, the string will
+                                give a reason for failure if the boolean is false.
+        """
+        try:
+            data = self.getURL(self.url)
+            if not data:
+                return (False, 'No data returned from url: ' + self.url)
+            
+            parsedXML = xml.dom.minidom.parseString(data)
+            items = parsedXML.getElementsByTagName('item')
+                
+            if parsedXML.documentElement.tagName != 'rss':
+                return (False, 'Data returned from url %s is not RSS.' % self.url)
+                
+            if items.length == 0:
+                # Maybe this isn't really a failure?  Not sure what's best here
+                return (False, 'There were no items in the RSS feed from %s' % self.url)
+        
+            checkItem = items[0]
+            (title, url) = self._get_title_and_url(checkItem)
+            if not title:
+                return (False, 'Failed to get title from first item in feed.')
+            
+            if not url:
+                return (False, 'Failed to get torrent url from first item in feed.')
+            
+            if url.startswith('magnet:'):
+                # we just assume that magnet links are ok
+                return (True, 'First torrent appears to be ok')
+            else:
+                
+                torrentFile = self.getURL(url)
+            
+                if torrentFile == None:
+                    return (False, 'Empty torrent file when downloading first torrent in feed.')
+
+                if not torrentFile.startswith("d8:announce") and not torrentFile.startswith("d12:_info_length"):
+                    return (False, 'First torrent in feed does not appear to be valid torrent file (wrong magic number)')
+            
+            return (True, 'First torrent in feed verified successfully')
+        except Exception, e: 
+            return (False, 'Error when trying to load RSS: ' + ex(e))
 
 
 class AnyRssCache(tvcache.TVCache):
@@ -115,7 +162,7 @@ class AnyRssCache(tvcache.TVCache):
         
         (title, url) = self.provider._get_title_and_url(item)
         if not title or not url:
-            logger.log(u"The XML returned from the PublicHD RSS feed is incomplete, this result is unusable", logger.ERROR)
+            logger.log(u"The XML returned from the RSS feed is incomplete, this result is unusable", logger.ERROR)
             return
 
         logger.log(u"Adding item from RSS to cache: " + title, logger.DEBUG)

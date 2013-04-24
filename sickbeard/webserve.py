@@ -1008,7 +1008,12 @@ class ConfigProviders:
         if tempProvider.getID() in providerDict:
             return json.dumps({'error': 'Exists as '+providerDict[tempProvider.getID()].name})
         else:
-            return json.dumps({'success': tempProvider.getID()})
+            (succ, errMsg) = tempProvider.verifyRss()
+            logger.log(u"verifyRss got: " + errMsg)
+            if succ:
+                return json.dumps({'success': tempProvider.getID()})
+            else:
+                return json.dumps({'error': errMsg })
 
     @cherrypy.expose
     def saveNewznabProvider(self, name, url, key=''):
