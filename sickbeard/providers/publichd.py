@@ -1,3 +1,5 @@
+# @author: Dermot Buckley <dermot@buckley.ie>
+# Adapted from ezrss.py, original author of which is Nic Wolfe <nic@wolfeden.ca>
 #
 # This file is part of Sick Beard.
 #

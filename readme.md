@@ -2,14 +2,15 @@
 
 This is a fork of the incredible [Sick Beard](https://github.com/midgetspy/Sick-Beard), with some additions regarding torrent support and some other areas.  
 Specifically it includes 
-* Support for the [ShowRSS](http://showrss.karmorra.info/) torrent feed (with some limited backlog support), 
-* Support for [dailytvtorrents](http://www.dailytvtorrents.org/)
-* Support for iPlayer downloads (via the [get_iplayer perl script](http://www.infradead.org/get_iplayer/html/get_iplayer.html)). [See here for how to set this up](http://brickybox.com/2013/03/05/sickbeard-iplayer-requirements)
+* Support for the [ShowRSS](http://showrss.karmorra.info/) torrent feed (with backlog support), 
+* Support for [dailytvtorrents](http://www.dailytvtorrents.org/) with backlog,
+* Support for [PublicHD](http://publichd.se/)
+* Support for iPlayer downloads (via the [get_iplayer perl script](http://www.infradead.org/get_iplayer/html/get_iplayer.html)); [See here for how to set this up](http://brickybox.com/2013/03/05/sickbeard-iplayer-requirements),
 * a UI for adding custom (local) scene exception names,
-* use of twitter, tpb, and feedburner rss feeds as fallbacks when ezrss fails.
+* use of twitter, tpb, and feedburner rss feeds as fallbacks when ezrss fails,
 * Support for the [Kickass Torrents](http://kat.ph/) torrent site (including backlog).  Searches verified torrents only.
 * Support for scene numbering at the episode level.  If scene numbering does not agree with tvdb numbering (as is often the case) the show will still be downloaded and saved correctly.
-* support for magnet links
+* support for magnet links.
 
 In addition to the libraries/projects used by [Sick Beard](https://github.com/midgetspy/Sick-Beard), this fork also leverages from the following:  
 
