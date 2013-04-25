@@ -18,7 +18,6 @@
 
 from xml.dom.minidom import parseString
 from pprint import pprint
-#from bs4 import BeautifulSoup
 
 import re
 import time

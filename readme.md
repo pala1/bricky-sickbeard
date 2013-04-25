@@ -13,9 +13,6 @@ Specifically it includes
 * Support for scene numbering at the episode level.  If scene numbering does not agree with tvdb numbering (as is often the case) the show will still be downloaded and saved correctly.
 * Support for magnet links.
 
-In addition to the libraries/projects used by [Sick Beard](https://github.com/midgetspy/Sick-Beard), this fork also leverages from the following:  
-
-* [Beautiful Soup](http://www.crummy.com/software/BeautifulSoup/)
 
 See [here](http://brickybox.com/2012/09/24/sickbeard-fork-feature-summary) for some further info.  
 
