@@ -18,8 +18,9 @@
 
 from xml.dom.minidom import parseString
 from pprint import pprint
-from bs4 import BeautifulSoup
+#from bs4 import BeautifulSoup
 
+import re
 import time
 import sickbeard
 import generic
@@ -72,20 +73,16 @@ class ShowRssProvider(generic.TorrentProvider):
             # pull in the list of feeds from the browse page
             logger.log(u"ShowRssProvider doing lookup of id mapping", logger.DEBUG)
             rawPage = self.getURL('%s?cs=feeds' % (self.url))
-            soup = BeautifulSoup(rawPage)
-            #logger.log(u"ShowRSS rawPage is as follows: %s" % (soup.prettify()), logger.DEBUG)
-            select = soup.find('select', { 'name' : "show" })
-            
-            if select:
-                #logger.log(u"ShowRSS show select is as follows: %s" % (select.prettify()), logger.DEBUG)
-                
+            matches = re.finditer(r'<option value="(?P<showid>\d+)">(?P<showname>[^<]+)</option>', rawPage, re.I)            
+            if matches:
                 self.knownShows = {}
-                for option in select.children:
-                    if u'value' in option.attrs:
+                for match in matches:
+                    if match.group('showid'):
                         try:
-                            self.knownShows[unicode(option.string)] = int(option[u'value'])
+                            showName = match.group('showname')
+                            self.knownShows[unicode(showName.strip().replace('&amp;', '&'))] = int(match.group('showid'))
                         except ValueError:
-                            # ValueError will be raised when option[u'value'] is not an integer.  We can 
+                            # ValueError will be raised when match.group('showid') is not an integer.  We can 
                             # safely ignore when this happens
                             pass
                         
