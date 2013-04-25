@@ -49,7 +49,7 @@ class AnyRssProvider(generic.TorrentProvider):
     def fromConfigStr(cls, configString):
         name, enabled, url = configString.split(CONFIG_SEP)
         p = cls(name, url)
-        p.enabled = enabled
+        p.enabled = enabled == '1'
         return p
 
     def imageName(self):
