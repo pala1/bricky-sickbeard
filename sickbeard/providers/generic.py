@@ -235,7 +235,7 @@ class GenericProvider:
         
         return (title, url)
     
-    def findEpisode (self, episode, manualSearch=False):
+    def findEpisode(self, episode, manualSearch=False):
 
         self._checkAuth()
 
@@ -244,6 +244,7 @@ class GenericProvider:
         self.cache.updateCache()
         results = self.cache.searchCache(episode, manualSearch)
         logger.log(u"Cache results: "+str(results), logger.DEBUG)
+        logger.log(u"manualSearch: "+str(manualSearch), logger.DEBUG)
 
         # if we got some results then use them no matter what.
         # OR
