@@ -92,9 +92,16 @@ class AnyRssProvider(generic.TorrentProvider):
                     # no torrent tag?  They I guess we just have to use the link
                     # tag, even if it doesn't look like a torrent
                     url = helpers.get_xml_text(item.getElementsByTagName('link')[0])
-                    
+             
+        if title:
+            # Badly formed rss sometimes will wrap the title in newlines, which 
+            # of course throws off the regex's.  This should fix it.
+            title = title.strip() 
+                  
         if url:
-            url = url.replace('&amp;','&')
+            # Ditto, badly formed rss can have newlines and other crap around the 
+            # url, and even spaces in the url.
+            url = url.replace('&amp;','&').strip().replace(' ', '%20')
 
         return (title, url)
     
