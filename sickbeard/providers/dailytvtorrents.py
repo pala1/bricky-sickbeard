@@ -345,7 +345,7 @@ class DailyTvTorrentsProvider(generic.TorrentProvider):
             elif title.endswith(' [720]'):
                 return Quality.HDTV
             elif title.endswith(' [1080]'):
-                return Quality.FULLHDBLURAY # best choice available I think
+                return Quality.FULLHDTV # best choice available I think
             
         quality = Quality.nameQuality(title)
         return quality
