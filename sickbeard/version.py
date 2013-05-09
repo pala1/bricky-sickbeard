@@ -1,1 +1,1 @@
-SICKBEARD_VERSION = "libtorrent"
+SICKBEARD_VERSION = "master"
