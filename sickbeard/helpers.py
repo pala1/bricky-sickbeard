@@ -126,7 +126,7 @@ def sanitizeFileName (name):
     return name
 
 
-def getURL (url, headers=[]):
+def getURL(url, headers=[], timeout=None):
     """
     Returns a byte-string retrieved from the url provider.
     """
@@ -137,7 +137,11 @@ def getURL (url, headers=[]):
         opener.addheaders.append(cur_header)
 
     try:
-        usock = opener.open(url)
+        if sys.version_info <= (2, 5) or timeout is None:
+            usock = opener.open(url)
+        else:
+            usock = opener.open(url, timeout=timeout)
+        
         url = usock.geturl()
         encoding = usock.info().get("Content-Encoding")
 

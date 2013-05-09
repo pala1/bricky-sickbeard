@@ -25,6 +25,7 @@ from sickbeard import helpers
 from sickbeard import logger
 from sickbeard import naming
 from sickbeard import db
+from sickbeard import downloader
 
 import sickbeard
 
@@ -164,6 +165,22 @@ def change_VERSION_NOTIFY(version_notify):
         
     if oldSetting == False and version_notify == True:
         sickbeard.versionCheckScheduler.action.run() #@UndefinedVariable
+        
+def change_LIBTORRENT_DL_SPEED(max_dl_speed):
+    oldSetting = sickbeard.LIBTORRENT_MAX_DL_SPEED
+    if max_dl_speed is None or max_dl_speed == "" or max_dl_speed < 0:
+        max_dl_speed = 0
+    sickbeard.LIBTORRENT_MAX_DL_SPEED = max_dl_speed
+    if sickbeard.USE_LIBTORRENT and oldSetting != max_dl_speed:
+        downloader.set_max_dl_speed(max_dl_speed)
+
+def change_LIBTORRENT_UL_SPEED(max_ul_speed):
+    oldSetting = sickbeard.LIBTORRENT_MAX_UL_SPEED
+    if max_ul_speed is None or max_ul_speed == "" or max_ul_speed < 0:
+        max_ul_speed = 0
+    sickbeard.LIBTORRENT_MAX_UL_SPEED = max_ul_speed
+    if sickbeard.USE_LIBTORRENT and oldSetting != max_ul_speed:
+        downloader.set_max_ul_speed(max_ul_speed)
 
 def CheckSection(CFG, sec):
     """ Check if INI section exists, if not create it """

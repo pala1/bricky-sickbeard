@@ -1,12 +1,5 @@
 $(document).ready(function(){
     var loading = '<img src="'+sbRoot+'/images/loading16.gif" height="16" width="16" />';
-    
-	function toggle_torrent_title(){
-		if ($('#use_torrents').prop('checked'))
-			$('#no-torrents').show();
-		else
-			$('#no-torrents').hide();
-	}
 	
     $.fn.nzb_method_handler = function() {
         
@@ -49,10 +42,19 @@ $(document).ready(function(){
         function (data){ $('#testSABnzbd-result').html(data); });
     });
     
-    $('#use_torrents').click(function(){
-    	toggle_torrent_title();
-    });
-    
-    toggle_torrent_title();
-    
+    var onTorrentMethodChange = function() {
+    	switch ($('#use_libtorrent :selected').val())
+    	{
+    	case 'off':	//	blackhole
+    		$('#torr_bh_settings').show();
+    		$('#libtorrent_settings').hide();
+    		break;
+    	case 'on':	//	libtorrent (integrated)
+    		$('#torr_bh_settings').hide();
+    		$('#libtorrent_settings').show();
+    		break;
+    	}
+    }
+    $('#use_libtorrent').change(onTorrentMethodChange);
+    onTorrentMethodChange();
 });

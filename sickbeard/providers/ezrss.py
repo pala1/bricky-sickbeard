@@ -187,7 +187,7 @@ class EZRSSProvider(generic.TorrentProvider):
                 # which likely means that this isn't in the special ezrss format.
                 # So assume we're working with with a standard rss feed.
                 logger.log(u"IndexError while parsing the ezrss feed, maybe it's just standard RSS? Trying that ...", logger.DEBUG)
-                (title, url) = generic.GenericProvider._get_title_and_url(self, item)
+                (title, url) = generic.TorrentProvider._get_title_and_url(self, item)
                 
         # feedburner adds "[eztv] " to the start of all titles, so trim it off
         if title and title[:7] == "[eztv] ":

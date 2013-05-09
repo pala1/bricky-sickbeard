@@ -164,6 +164,12 @@
                             <a href="$sbRoot/comingEpisodes/">Coming Episodes</a>
                         </li>
                         <li class="divider-vertical"></li>
+                        #if $sickbeard.USE_LIBTORRENT:
+                        <li id="NAVdownloads">
+                            <a href="$sbRoot/downloads/">$downloadPageTitle</a>
+                        </li>
+                        <li class="divider-vertical"></li>
+                        #end if        
                         <li id="NAVhistory">
                             <a href="$sbRoot/history/">History</a>
                         </li>
@@ -208,11 +214,11 @@
                         </li>
                         <li class="divider-vertical"></li>
                     </ul>
-                    <ul class="nav pull-right">
+                    <!-- <ul class="nav pull-right">
                         <li>
                             <a id="navDonate" href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&amp;hosted_button_id=JA8M7VDY89SQ4" onclick="window.open(this.href); return false;"><img src="$sbRoot/images/paypal/btn_donate_LG.gif" alt="[donate]" height="26" width="92" /></a>
                         </li>
-                    </ul>
+                    </ul> -->
                 </div><!-- /nav-collapse -->
 
             </div><!-- /container -->

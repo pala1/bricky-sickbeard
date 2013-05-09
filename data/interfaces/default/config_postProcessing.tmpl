@@ -30,6 +30,12 @@
                     <div class="component-group-desc">
                         <h3>Post-Processing</h3>
                         <p>Settings that dictate how Sick Beard should process completed downloads.</p>
+                        #if $sickbeard.USE_TORRENTS and $sickbeard.USE_LIBTORRENT:
+                        <p><span style="color: red">These settings only affect downloads from outside Sickbeard, <strong>they
+                        do not apply to integrated downloads</strong>.</span><br />
+                        i.e. you only need to worry about these settings if you are also using another program to download 
+                        your tv shows</p>
+                        #end if
                     </div>
 
                     <fieldset class="component-group-list">

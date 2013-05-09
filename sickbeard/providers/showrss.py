@@ -84,7 +84,7 @@ class ShowRssProvider(generic.TorrentProvider):
             
         
         url = SHOW_LOOKUP_URL + '?tvdb_id=' + str(tvdb_id)
-        data = helpers.getURL(url)
+        data = helpers.getURL(url, timeout=60) # give this a longer timeout b/c it may take a while
         result = json.loads(data)
         if not result:
             logger.log(u"Empty lookup result -> failed to find show id", logger.DEBUG)

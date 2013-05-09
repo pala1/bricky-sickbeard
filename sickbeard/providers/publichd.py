@@ -40,7 +40,15 @@ class PublicHdProvider(generic.TorrentProvider):
     
     def _get_title_and_url(self, item):
         title = helpers.get_xml_text(item.getElementsByTagName('title')[0])
-        url = item.getElementsByTagName('enclosure')[0].getAttribute('url').replace('&amp;','&')
+        if sickbeard.PREFER_MAGNETS:
+            magnetURIs = item.getElementsByTagName('magnetURI')
+            if magnetURIs.length:
+                url = helpers.get_xml_text(magnetURIs[0])
+            else:
+                url = item.getElementsByTagName('enclosure')[0].getAttribute('url').replace('&amp;','&')
+        else:
+            url = item.getElementsByTagName('enclosure')[0].getAttribute('url').replace('&amp;','&')
+            
         if title.startswith('[TORRENT] '):
             title = title[10:]    
             

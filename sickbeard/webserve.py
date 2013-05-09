@@ -41,6 +41,7 @@ from sickbeard import encodingKludge as ek
 from sickbeard import search_queue
 from sickbeard import image_cache
 from sickbeard import naming
+from sickbeard import downloader
 
 from sickbeard.providers import newznab, anyrss
 from sickbeard.common import Quality, Overview, statusStrings
@@ -91,12 +92,19 @@ class PageTemplate (Template):
             self.sbHttpsPort = self.sbHttpPort
         if "X-Forwarded-Proto" in cherrypy.request.headers:
             self.sbHttpsEnabled = True if cherrypy.request.headers['X-Forwarded-Proto'] == 'https' else False
+            
+        downloadPageTitle = u'Downloads'
+        if sickbeard.USE_LIBTORRENT and len(downloader.running_torrents):
+            downloadPageTitle += ' ({0})'.format(len(downloader.running_torrents))
+        self.downloadPageTitle = downloadPageTitle
 
         logPageTitle = 'Logs &amp; Errors'
         if len(classes.ErrorViewer.errors):
             logPageTitle += ' ('+str(len(classes.ErrorViewer.errors))+')'
         self.logPageTitle = logPageTitle
         self.sbPID = str(sickbeard.PID)
+        
+        # is this even used?  Menu appears to be hardcoded in inc_top.tmpl?
         self.menu = [
             { 'title': 'Home',            'key': 'home'           },
             { 'title': 'Coming Episodes', 'key': 'comingEpisodes' },
@@ -105,6 +113,9 @@ class PageTemplate (Template):
             { 'title': 'Config',          'key': 'config'         },
             { 'title': logPageTitle,      'key': 'errorlogs'      },
         ]
+        
+        if sickbeard.USE_LIBTORRENT:
+            self.menu.insert(2, {'title': downloadPageTitle, 'key': 'downloads' })
 
 def redirect(abspath, *args, **KWs):
     assert abspath[0] == '/'
@@ -772,7 +783,8 @@ class ConfigSearch:
     @cherrypy.expose
     def saveSearch(self, use_nzbs=None, use_torrents=None, use_vods=None, nzb_dir=None, sab_username=None, sab_password=None,
                        sab_apikey=None, sab_category=None, sab_host=None, nzbget_password=None, nzbget_category=None, nzbget_host=None,
-                       torrent_dir=None, nzb_method=None, usenet_retention=None, search_frequency=None, download_propers=None):
+                       torrent_dir=None, nzb_method=None, usenet_retention=None, search_frequency=None, download_propers=None,
+                       use_libtorrent=None, seed_to_ratio=None, max_dl_speed=None, max_ul_speed=None, libtorrent_working_dir=None):
 
         results = []
 
@@ -781,8 +793,55 @@ class ConfigSearch:
 
         if not config.change_TORRENT_DIR(torrent_dir):
             results += ["Unable to create directory " + os.path.normpath(torrent_dir) + ", dir not changed."]
+            
+        if libtorrent_working_dir != sickbeard.LIBTORRENT_WORKING_DIR:
+            #@todo: implement this!
+            msg = u'Unable to change the libtorrent working directory while running (NOT IMPLEMENTED). ' + \
+                u'If necessary, you can change it by stopping sickbeard, then changing the config.ini value "working_dir". ' + \
+                u'(This will be implemented in time, but it\'s not an immediate priority)'
+            logger.log(msg, logger.ERROR)
+            results += [msg]
 
         config.change_SEARCH_FREQUENCY(search_frequency)
+        
+        use_libtorrent = 1 if use_libtorrent == 'on' else 0
+        
+        try:
+            seed_to_ratio = 1.1 if seed_to_ratio == "" else float(seed_to_ratio)
+            if seed_to_ratio <= 0.0:
+                seed_to_ratio = 0.0 
+                logger.log(u'You have set your seed ratio to 0.  This makes you all take, with no give.  ' + \
+                    u'Please feel appropriately guilty for a moment, and do something nice for someone to make up for it.', logger.MESSAGE)
+        except Exception, e:
+            msg = u'Unable to make a float from "{0}", setting seed_to_ratio to 1.1'.format(seed_to_ratio)
+            logger.log(msg + ': ' + ex(e), logger.ERROR)
+            results += [msg]
+            seed_to_ratio = 1.1
+            
+        try:
+            max_dl_speed = 0 if max_dl_speed == "" else int(max_dl_speed)
+            if max_dl_speed < 0: 
+                max_dl_speed = 0
+        except Exception, e:
+            msg = u'Unable to make an int from "{0}", setting max_dl_speed to 0 (auto)'.format(max_dl_speed)
+            logger.log(msg + u': ' + ex(e), logger.ERROR)
+            results += [msg]
+            max_dl_speed = 0
+            
+        config.change_LIBTORRENT_DL_SPEED(max_dl_speed)
+        
+            
+        try:
+            max_ul_speed = 0 if max_ul_speed == "" else int(max_ul_speed)
+            if max_ul_speed < 0: 
+                max_ul_speed = 0
+        except Exception, e:
+            msg = u'Unable to make an int from "{0}", setting max_ul_speed to 0 (auto)'.format(max_ul_speed)
+            logger.log(msg + u': ' + ex(e), logger.ERROR)
+            results += [msg]
+            max_ul_speed = 0
+            
+        config.change_LIBTORRENT_UL_SPEED(max_ul_speed)
 
         if download_propers == "on":
             download_propers = 1
@@ -832,6 +891,10 @@ class ConfigSearch:
         sickbeard.NZBGET_PASSWORD = nzbget_password
         sickbeard.NZBGET_CATEGORY = nzbget_category
         sickbeard.NZBGET_HOST = nzbget_host
+        
+        
+        sickbeard.USE_LIBTORRENT = use_libtorrent
+        sickbeard.LIBTORRENT_SEED_TO_RATIO = seed_to_ratio
 
 
         sickbeard.save_config()
@@ -2065,7 +2128,36 @@ class ErrorLogs:
         t.minLevel = minLevel
 
         return _munge(t)
+    
+class Downloads:
 
+    @cherrypy.expose
+    def index(self):
+        t = PageTemplate(file="downloads.tmpl")
+        return _munge(t)
+
+    @cherrypy.expose
+    def getRunningTorrents(self):
+        cherrypy.response.headers['Content-Type'] = 'application/json'
+        result = []
+        for t in downloader.get_running_torrents():
+            # we only return the useful info
+            
+            result.append({
+                'key'       : t['key'],
+                'name'      : t['name'],
+                'start_time': t['start_time'],
+                'status'    : t['status'],
+                'progress'  : t['progress'],
+                'rate_down' : t['rate_down'],
+                'rate_up'   : t['rate_up'],
+                'total_size': t['total_size'],
+                'ratio'     : t['ratio'],
+                'paused'    : t['paused'],
+                'error'     : t['error'],
+            })
+
+        return json.dumps(result)
 
 class Home:
 
@@ -3065,6 +3157,8 @@ class WebInterface:
     config = Config()
 
     home = Home()
+    
+    downloads = Downloads()
 
     api = Api()
 

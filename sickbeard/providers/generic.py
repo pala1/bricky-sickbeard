@@ -36,6 +36,7 @@ from sickbeard.common import Quality, MULTI_EP_RESULT, SEASON_RESULT
 from sickbeard import tvcache
 from sickbeard import encodingKludge as ek
 from sickbeard.exceptions import ex
+from sickbeard import downloader
 
 from lib.hachoir_parser import createParser
 
@@ -167,31 +168,7 @@ class GenericProvider:
         Checks the saved file to see if it was actually valid, if not then consider the download a failure.
         Returns a Boolean
         """
-        
-        logger.log(u"Verifying Download %s" % file_name, logger.DEBUG)
-
-        if self.providerType == GenericProvider.TORRENT:
-            # According to /usr/share/file/magic/archive, the magic number for
-            # torrent files is 
-            #    d8:announce
-            # So instead of messing with buggy parsers (as was done here before)
-            # we just check for this magic instead.
-            # Note that a significant minority of torrents have a not-so-magic of "d12:_info_length",
-            # which while not explicit in the spec is valid bencode and works with Transmission and uTorrent.
-            try:
-                with open(file_name, "rb") as f:
-                    magic = f.read(16)
-                    if magic[:11] == "d8:announce" or magic == "d12:_info_length":
-                        return True
-                    else:
-                        logger.log("Magic number for %s is neither 'd8:announce' nor 'd12:_info_length', got '%s' instead" % (file_name, magic), logger.WARNING)
-                        #logger.log(f.read())
-                        return False
-            except Exception, eparser:
-                logger.log("Failed to read magic numbers from file: "+ex(eparser), logger.ERROR)
-                logger.log(traceback.format_exc(), logger.DEBUG)
-                return False
-
+        # this is now simply overridden when it needs to be.
         return True
 
     def searchRSS(self):
@@ -492,52 +469,130 @@ class TorrentProvider(GenericProvider):
     
     def downloadResult(self, result):
         """
-        Overridden to handle magnet links (using multiple fallbacks)
+        Overridden to handle magnet links (using multiple fallbacks), and now libtorrent
+        downloads also.
         """
         logger.log(u"Downloading a result from " + self.name+" at " + result.url)
         
-        if result.url and result.url.startswith('magnet:'):
-            torrent_hash = self.getHashFromMagnet(result.url)
-            if torrent_hash:
-                urls = [url_fmt % torrent_hash for url_fmt in MAGNET_TO_TORRENT_URLS]
+        if sickbeard.USE_LIBTORRENT:
+            # libtorrent can download torrent files from urls, but it's probably safer for us
+            # to do it first so that we can report errors immediately.
+            if result.url and (result.url.startswith('http://') or result.url.startswith('https://')):
+                torrent = self.getURL(result.url)
+                # and now that we have it, we can check the torrent file too!
+                if not self.is_valid_torrent_data(torrent):
+                    logger.log(u'The torrent retrieved from "{0}" is not a valid torrent file.'.format(result.url), logger.ERROR)
+                    return False
             else:
-                logger.log(u"Failed to handle magnet url %s, skipping..." % torrent_hash, logger.DEBUG)
+                torrent = result.url
+                
+            if torrent:
+                return downloader.download_from_torrent(torrent)
+            else:
+                logger.log(u'Failed to retrieve torrent from "{0}"'.format(result.url), logger.ERROR)
                 return False
         else:
-            urls = [result.url]
+            # Ye olde way, using blackhole ...
             
-        # use the result name as the filename
-        fileName = ek.ek(os.path.join, sickbeard.TORRENT_DIR, helpers.sanitizeFileName(result.name) + '.' + self.providerType)
-            
-        for url in urls:
-            logger.log(u"Trying d/l url: " + url, logger.DEBUG)
-            data = self.getURL(url)
-            
-            if data == None:
-                logger.log(u"Got no data for " + url, logger.DEBUG)
-                # fall through to next iteration
-            elif not data.startswith("d8:announce") and not data.startswith("d12:_info_length"):
-                logger.log(u"d/l url %s failed, not a valid torrent file" % (url), logger.MESSAGE)
-            else:
-                try:
-                    fileOut = open(fileName, 'wb')
-                    fileOut.write(data)
-                    fileOut.close()
-                    helpers.chmodAsParent(fileName)
-                except IOError, e:
-                    logger.log("Unable to save the file: "+ex(e), logger.ERROR)
+            if result.url and result.url.startswith('magnet:'):
+                torrent_hash = self.getHashFromMagnet(result.url)
+                if torrent_hash:
+                    urls = [url_fmt % torrent_hash for url_fmt in MAGNET_TO_TORRENT_URLS]
+                else:
+                    logger.log(u"Failed to handle magnet url %s, skipping..." % torrent_hash, logger.DEBUG)
                     return False
+            else:
+                urls = [result.url]
                 
-                logger.log(u"Success with url: " + url, logger.DEBUG)
-                return True
-        else:
-            logger.log(u"All d/l urls have failed.  Sorry.", logger.MESSAGE)
-            return False
+            # use the result name as the filename
+            fileName = ek.ek(os.path.join, sickbeard.TORRENT_DIR, helpers.sanitizeFileName(result.name) + '.' + self.providerType)
+                
+            for url in urls:
+                logger.log(u"Trying d/l url: " + url, logger.DEBUG)
+                data = self.getURL(url)
+                
+                if data == None:
+                    logger.log(u"Got no data for " + url, logger.DEBUG)
+                    # fall through to next iteration
+                elif not self.is_valid_torrent_data(data):
+                    logger.log(u"d/l url %s failed, not a valid torrent file" % (url), logger.MESSAGE)
+                else:
+                    try:
+                        fileOut = open(fileName, 'wb')
+                        fileOut.write(data)
+                        fileOut.close()
+                        helpers.chmodAsParent(fileName)
+                    except IOError, e:
+                        logger.log("Unable to save the file: "+ex(e), logger.ERROR)
+                        return False
+                    
+                    logger.log(u"Success with url: " + url, logger.DEBUG)
+                    return True
+            else:
+                logger.log(u"All d/l urls have failed.  Sorry.", logger.MESSAGE)
+                return False
         
         
         return False
+    
+    def _get_title_and_url(self, item):
+        """
+        Retrieves the title and URL data from the item XML node.
+        Overridden here so that we have have a preference for magnets.
+        
+        item: An xml.dom.minidom.Node representing the <item> tag of the RSS feed
+        Returns: A tuple containing two strings representing title and URL respectively
+        """
+        title = helpers.get_xml_text(item.getElementsByTagName('title')[0])
+        url = None
+        try:
+            if sickbeard.PREFER_MAGNETS:
+                try:
+                    url = helpers.get_xml_text(item.getElementsByTagName('magentURI')[0])
+                except Exception:
+                    pass
+            if url is None:
+                url = helpers.get_xml_text(item.getElementsByTagName('link')[0])
+                if url:
+                    url = url.replace('&amp;','&')
+        except IndexError:
+            url = None
+        
+        return (title, url)
+    
+    def _verify_download(self, file_name=None):
+        """
+        Checks the saved file to see if it was actually valid, if not then consider the download a failure.
+        Returns a Boolean
+        """
+        
+        logger.log(u"Verifying Download %s" % file_name, logger.DEBUG)
+        try:
+            with open(file_name, "rb") as f:
+                magic = f.read(16)
+                if self.is_valid_torrent_data(magic):
+                    return True
+                else:
+                    logger.log("Magic number for %s is neither 'd8:announce' nor 'd12:_info_length', got '%s' instead" % (file_name, magic), logger.WARNING)
+                    #logger.log(f.read())
+                    return False
+        except Exception, eparser:
+            logger.log("Failed to read magic numbers from file: "+ex(eparser), logger.ERROR)
+            logger.log(traceback.format_exc(), logger.DEBUG)
+            return False
 
-
+    @classmethod
+    def is_valid_torrent_data(cls, torrent_file_contents):
+        # According to /usr/share/file/magic/archive, the magic number for
+        # torrent files is 
+        #    d8:announce
+        # So instead of messing with buggy parsers (as was done here before)
+        # we just check for this magic instead.
+        # Note that a significant minority of torrents have a not-so-magic of "d12:_info_length",
+        # which while not explicit in the spec is valid bencode and works with Transmission and uTorrent.
+        return torrent_file_contents is not None and \
+            (torrent_file_contents.startswith("d8:announce") or \
+             torrent_file_contents.startswith("d12:_info_length"))
 
 class VODProvider(GenericProvider):
     """

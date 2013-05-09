@@ -274,7 +274,17 @@ class KATProvider(generic.TorrentProvider):
         #(title, url) = generic.TorrentProvider._get_title_and_url(self, item)
 
         title = helpers.get_xml_text(item.getElementsByTagName('title')[0])
-        url = item.getElementsByTagName('enclosure')[0].getAttribute('url').replace('&amp;','&')
+        
+        url = None
+        if sickbeard.PREFER_MAGNETS:
+            # if we have a preference for magnets, go straight for the throat...
+            try:
+                url = helpers.get_xml_text(item.getElementsByTagName('magnetURI')[0])
+            except Exception:
+                pass
+                
+        if url is None:
+            url = item.getElementsByTagName('enclosure')[0].getAttribute('url').replace('&amp;','&')
 
         return (title, url)
 

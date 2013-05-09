@@ -693,9 +693,13 @@ class PostProcessor(object):
         
         return False
 
-    def process(self):
+    def process(self, forceKeepOriginalFiles=False):
         """
         Post-process a given file
+        
+        @param forceKeepOriginalFiles: (bool) If set, the value of sickbeard.KEEP_PROCESSED_DIR is
+            ignored, and the file(s) will be retained after processing.  If unset (the default), this
+            is controlled by sickbeard.KEEP_PROCESSED_DIR
         """
 
         self._log(u"Processing " + self.file_path + " (" + str(self.nzb_name) + ")")
@@ -831,7 +835,7 @@ class PostProcessor(object):
 
         try:
             # move the episode and associated files to the show dir
-            if sickbeard.KEEP_PROCESSED_DIR:
+            if forceKeepOriginalFiles or sickbeard.KEEP_PROCESSED_DIR:
                 self._copy(self.file_path, dest_path, new_base_name, sickbeard.MOVE_ASSOCIATED_FILES)
             else:
                 self._move(self.file_path, dest_path, new_base_name, sickbeard.MOVE_ASSOCIATED_FILES)
