@@ -66,38 +66,42 @@ class AnyRssProvider(generic.TorrentProvider):
         # cf. http://www.bittorrent.org/beps/bep_0036.html (but note that this isn't entirely reliable, 
         # or indeed correct).
         
-        # If there's an 'enclosure' tag, then we can be reasonably confident that
-        # its url attribute will be the torrent url.
         url = None
-        try:
-            url = item.getElementsByTagName('enclosure')[0].getAttribute('url').replace('&amp;','&')
-        except IndexError:
-            # next port-of-call is the 'link' tag, we use this if it looks like
-            # a torrent link
-            url = helpers.get_xml_text(item.getElementsByTagName('link')[0])
-            if url.startswith('magnet:') or url.endswith('.torrent'):
-                # found!
+        if sickbeard.PREFER_MAGNETS:
+            # if we have a preference for magnets, go straight for the throat...
+            try:
+                url = helpers.get_xml_text(item.getElementsByTagName('magnetURI')[0])
+            except Exception:
                 pass
-            else:
-                # link tag doesn't look like a torrent, look for a torrent tag
-                try:
-                    torrTag = item.getElementsByTagName('torrent')[0]
+            
+        if url is None:
+            
+            # If there's an 'enclosure' tag, then we can be reasonably confident that
+            # its url attribute will be the torrent url.
+            try:
+                url = item.getElementsByTagName('enclosure')[0].getAttribute('url').replace('&amp;','&')
+            except IndexError:
+                # next port-of-call is the 'link' tag, we use this if it looks like
+                # a torrent link
+                url = helpers.get_xml_text(item.getElementsByTagName('link')[0])
+                if url.startswith('magnet:') or url.endswith('.torrent'):
+                    # found!
+                    pass
+                else:
+                    # link tag doesn't look like a torrent, look for a torrent tag
                     try:
-                        url = helpers.get_xml_text(torrTag.getElementsByTagName('magnetURI')[0])
+                        torrTag = item.getElementsByTagName('torrent')[0]
+                        try:
+                            url = helpers.get_xml_text(torrTag.getElementsByTagName('magnetURI')[0])
+                        except IndexError:
+                            # No magnetURI?  then use the infoHash
+                            infoHash = helpers.get_xml_text(torrTag.getElementsByTagName('infoHash')[0])
+                            url = 'magnet:?xt=urn:btih:' + infoHash
                     except IndexError:
-                        # No magnetURI?  then use the infoHash
-                        infoHash = helpers.get_xml_text(torrTag.getElementsByTagName('infoHash')[0])
-                        url = 'magnet:?xt=urn:btih:' + infoHash
-                except IndexError:
-                    # no torrent tag?  They I guess we just have to use the link
-                    # tag, even if it doesn't look like a torrent
-                    url = helpers.get_xml_text(item.getElementsByTagName('link')[0])
-             
-        if title:
-            # Badly formed rss sometimes will wrap the title in newlines, which 
-            # of course throws off the regex's.  This should fix it.
-            title = title.strip() 
-                  
+                        # no torrent tag?  They I guess we just have to use the link
+                        # tag, even if it doesn't look like a torrent
+                        url = helpers.get_xml_text(item.getElementsByTagName('link')[0])
+                    
         if url:
             # Ditto, badly formed rss can have newlines and other crap around the 
             # url, and even spaces in the url.
@@ -143,7 +147,7 @@ class AnyRssProvider(generic.TorrentProvider):
                 if torrentFile == None:
                     return (False, 'Empty torrent file when downloading first torrent in feed.')
 
-                if not torrentFile.startswith("d8:announce") and not torrentFile.startswith("d12:_info_length"):
+                if not self.is_valid_torrent_data(torrentFile):
                     return (False, 'First torrent in feed does not appear to be valid torrent file (wrong magic number)')
             
             return (True, 'First torrent in feed verified successfully')
