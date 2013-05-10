@@ -58,7 +58,7 @@ ep_regexes = [
                # [ www.Torrenting.com ] - Men.at.Work.S02E06.HDTV.XviD-AFG
                # [kat.ph]666.park.avenue.s01e12.vostfr.hdtv.xvid.itoma
                '''
-               ^(\[.+\][ -]*)?                             # likely a web address, surrounded by [ and ]
+               ^(\[.+\][ -]*)                              # likely a web address, surrounded by [ and ]
                ((?P<series_name>.+?)[. _-]+)?              # Show_Name and separator
                s(?P<season_num>\d+)[. _-]*                 # S01 and optional separator
                e(?P<ep_num>\d+)                            # E02 and separator
