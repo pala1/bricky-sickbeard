@@ -181,6 +181,10 @@ def _get_session(createIfNeeded=True):
         settings.user_agent = 'sickbeard_bricky-{0}/{1}'.format(version.SICKBEARD_VERSION.replace(' ', '-'), lt.version)
         settings.rate_limit_utp = True # seems this is rqd, otherwise uTP connections don't obey the rate limit
         
+        settings.active_downloads = 8
+        settings.active_seeds = 12
+        settings.active_limit = 20
+        
         _lt_sess.listen_on(6881, 6891)
         _lt_sess.set_settings(settings)
         _lt_sess.set_alert_mask(lt.alert.category_t.error_notification |
@@ -396,4 +400,13 @@ class TorrentProcessHandler():
                 
                 _save_running_torrents()
                 
+                # We do this to encourage cleanup of the session (in particular
+                # closing any open file handles).
+                del sess
+                _lt_sess = None
+                
+                # normally this wouldn't matter of course, because we'd be truly
+                # shutting down, but often the case is that sickbeard is actually
+                # restarting, so we don't benefit from the cleanup associated with
+                # stopping the main thread.
                 
