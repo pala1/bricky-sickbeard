@@ -175,6 +175,10 @@ class AnyRssCache(tvcache.TVCache):
         if not title or not url:
             logger.log(u"The XML returned from the RSS feed is incomplete, this result is unusable", logger.ERROR)
             return
+        
+        if url and self.provider.urlIsBlacklisted(url):
+            logger.log(u'The url "{0}" for "{1}" is blacklisted, ignoring'.format(url, title), logger.DEBUG)
+            return
 
         logger.log(u"Adding item from RSS to cache: " + title, logger.DEBUG)
         self._addCacheEntry(title, url)

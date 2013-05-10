@@ -134,6 +134,10 @@ class ShowRssProvider(generic.TorrentProvider):
             if not title or not url:
                 logger.log(u"The XML returned from the ShowRSS feed is incomplete, this result is unusable: "+data, logger.ERROR)
                 continue
+            
+            if self.urlIsBlacklisted(url):
+                logger.log(u'Ignoring result with url {0} as it has been blacklisted'.format(url), logger.DEBUG)
+                continue
     
             results.append(curItem)
 

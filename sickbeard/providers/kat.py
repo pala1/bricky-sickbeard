@@ -265,6 +265,10 @@ class KATProvider(generic.TorrentProvider):
             if self._get_seeders(curItem) <= 0:
                 logger.log(u"Discarded result with no seeders: " + title, logger.DEBUG)
                 continue
+            
+            if self.urlIsBlacklisted(url):
+                logger.log(u'URL "{0}" for "{1}" is blacklisted, ignoring.'.format(url, title), logger.DEBUG)
+                continue
 
             results.append(curItem)
 
@@ -343,15 +347,6 @@ class KATCache(tvcache.TVCache):
         if not title or not url:
             logger.log(u"The XML returned from the KAT RSS feed is incomplete, this result is unusable", logger.ERROR)
             return
-        
-#        if url and url.startswith('magnet:'):
-#            torrent_url = self.provider.magnetToTorrent(url)
-#            if torrent_url:
-#                logger.log(u"Changed magnet %s to %s" % (url, torrent_url), logger.DEBUG)
-#                url = torrent_url
-#            else:
-#                logger.log(u"Failed to handle magnet url %s, skipping..." % url, logger.DEBUG)
-#                return
             
         if url and self.provider.urlIsBlacklisted(url):
             logger.log(u"url %s is blacklisted, skipping..." % url, logger.DEBUG)

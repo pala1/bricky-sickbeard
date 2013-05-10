@@ -139,6 +139,10 @@ class EZRSSProvider(generic.TorrentProvider):
             if not title or not url:
                 logger.log(u"The XML returned from the EZRSS RSS feed is incomplete, this result is unusable: "+data, logger.ERROR)
                 continue
+            
+            if self.urlIsBlacklisted(url):
+                logger.log(u'URL "{0}" for "{1}" is blacklisted.  Ignoring.'.format(url, title), logger.DEBUG)
+                continue
     
             results.append(curItem)
 

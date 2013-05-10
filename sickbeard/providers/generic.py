@@ -27,6 +27,7 @@ import copy
 import traceback
 import re
 import base64
+import time
 
 import sickbeard
 
@@ -241,6 +242,10 @@ class GenericProvider:
         for item in itemList:
 
             (title, url) = self._get_title_and_url(item)
+            
+            if self.urlIsBlacklisted(url):
+                logger.log(u'Ignoring {0} as the url {1} is blacklisted'.format(title, url), logger.DEBUG)
+                continue
 
             # parse the file name
             try:
@@ -288,6 +293,10 @@ class GenericProvider:
         for item in itemList:
 
             (title, url) = self._get_title_and_url(item)
+            
+            if self.urlIsBlacklisted(url):
+                logger.log(u'Ignoring {0} as the url {1} is blacklisted'.format(title, url), logger.DEBUG)
+                continue
 
             quality = self.getQuality(item)
 
@@ -370,6 +379,43 @@ class GenericProvider:
         results = self.cache.listPropers(date)
 
         return [classes.Proper(x['name'], x['url'], datetime.datetime.fromtimestamp(x['time'])) for x in results]
+    
+    # Dictionary of blacklisted torrent urls.  Keys are the url, values are the 
+    # timestamp when it was added
+    url_blacklist = {}
+
+    # How long does an entry stay in the URL_BLACKLIST?
+    URL_BLACKLIST_EXPIRY_SECS = 172800 # 172800 = 2 days
+    
+    @classmethod
+    def urlIsBlacklisted(cls, url):
+        """
+        Check if a url is blacklisted.  
+        @param url: (string)
+        @return: bool 
+        """
+        if url is None:
+            return False
+        if url.startswith('http://extratorrent.com/') or url.startswith('https://extratorrent.com/'):
+            # This site is permanently blacklisted (no direct torrent links, just ads)
+            return True
+        if url in cls.url_blacklist:
+            if time.time() - cls.url_blacklist[url] < cls.URL_BLACKLIST_EXPIRY_SECS:
+                # still blacklisted
+                return True
+            else:
+                # no longer blacklisted, remove it from the list
+                del cls.url_blacklist[url]
+        return False
+    
+    @classmethod
+    def blacklistUrl(cls, url):
+        """
+        Add a url to the blacklist.  It stays there for URL_BLACKLIST_EXPIRY_SECS.
+        @param url: (string) 
+        """
+        if url is not None: 
+            cls.url_blacklist[url] = time.time()
 
 
 class NZBProvider(GenericProvider):
@@ -437,18 +483,7 @@ class TorrentProvider(GenericProvider):
         else:
             # failed to pull info hash
             return None
-
-    def urlIsBlacklisted(self, url):
-        """
-        For now this is just a hackish way of blacklisting direct links to 
-        extratorrent.com (which, despite appearing to be .torrent links, are
-        actualling advertisement pages)
-        """
-        if url is None:
-            return False
-        if url.startswith('http://extratorrent.com/') or url.startswith('https://extratorrent.com/'):
-            return True
-        return False
+        
     
     def getURL(self, url, headers=None):
         """
@@ -482,6 +517,7 @@ class TorrentProvider(GenericProvider):
                 # and now that we have it, we can check the torrent file too!
                 if not self.is_valid_torrent_data(torrent):
                     logger.log(u'The torrent retrieved from "{0}" is not a valid torrent file.'.format(result.url), logger.ERROR)
+                    self.blacklistUrl(result.url)
                     return False
             else:
                 torrent = result.url
@@ -500,6 +536,7 @@ class TorrentProvider(GenericProvider):
                     urls = [url_fmt % torrent_hash for url_fmt in MAGNET_TO_TORRENT_URLS]
                 else:
                     logger.log(u"Failed to handle magnet url %s, skipping..." % torrent_hash, logger.DEBUG)
+                    self.blacklistUrl(result.url)
                     return False
             else:
                 urls = [result.url]
@@ -516,6 +553,7 @@ class TorrentProvider(GenericProvider):
                     # fall through to next iteration
                 elif not self.is_valid_torrent_data(data):
                     logger.log(u"d/l url %s failed, not a valid torrent file" % (url), logger.MESSAGE)
+                    self.blacklistUrl(url)
                 else:
                     try:
                         fileOut = open(fileName, 'wb')
