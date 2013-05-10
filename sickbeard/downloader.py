@@ -350,7 +350,7 @@ class TorrentProcessHandler():
                             if isMediaFile(fullpath):
                                 logger.log(u'this is a media file', logger.DEBUG)
                                 try:
-                                    processor = postProcessor.PostProcessor(fullpath)
+                                    processor = postProcessor.PostProcessor(fullpath, name)
                                     if processor.process(forceKeepOriginalFiles=True):
                                         logger.log(u'Success post-processing "{0}"'.format(fullpath), logger.DEBUG)
                                         any_file_success = True
