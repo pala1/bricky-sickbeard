@@ -277,6 +277,7 @@ class TorrentProcessHandler():
         self.shutDownImmediate = False
         self.loadedRunningTorrents = False
         self.amActive = False # just here to keep the scheduler class happy!
+        self.lastTorrentStatusLogTS = 0 # timestamp of last log of torrent status
     
     def run(self):
         """
@@ -304,6 +305,8 @@ class TorrentProcessHandler():
                     logger.log(u'{0}'.format(a), logger.DEBUG)
                 else:
                     logger.log(u'({0}): {1}'.format(type(a).__name__, a.message()), logger.DEBUG)
+                    
+            logTorrentStatus = (time.time() - self.lastTorrentStatusLogTS) >= 600
                 
             for torrent_data in running_torrents:
                 if torrent_data['handle'].has_metadata():
@@ -368,9 +371,13 @@ class TorrentProcessHandler():
                             logger.log(u'Torrent "{0}" has seeded to ratio {1}.  Removing it.'.format(name, currentRatio), logger.MESSAGE)
                             _remove_torrent_by_handle(torrent_data['handle'])
                         else:
-                            logger.log(u'"{0}" seeding {1:.3f}'.format(name, currentRatio), logger.DEBUG)
+                            if logTorrentStatus:
+                                self.lastTorrentStatusLogTS = time.time()
+                                logger.log(u'"{0}" seeding {1:.3f}'.format(name, currentRatio), logger.DEBUG)
                 elif s.state == lt.torrent_status.downloading:
-                    logger.log(u'"{0}" downloading {1:.2f}%'.format(name, s.progress * 100.0), logger.DEBUG)
+                    if logTorrentStatus:
+                        self.lastTorrentStatusLogTS = time.time()
+                        logger.log(u'"{0}" downloading {1:.2f}%'.format(name, s.progress * 100.0), logger.DEBUG)
                         
             if self.shutDownImmediate:
                 # there's an immediate shutdown waiting to happen, save any running torrents
