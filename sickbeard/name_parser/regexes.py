@@ -47,6 +47,27 @@ ep_regexes = [
                -(?P<release_group>[^- ]+))?)?$              # Group
                '''),
               
+              ('site_at_start',
+               # Several sites doing this now, putting their url at the start for credit
+               # (generally just in the torrent name, but also, sometimes in the dir and/or filenames)
+               # This is the 'standard' regex, with allowance for this at the beginning.
+               
+               # [www.Cpasbien.me] 666.Park.Avenue.S01E13.Vostfr.HDTV.XviD-iTOMa
+               # [ www.Torrenting.com ] - American.Idol.S12E35.480p.HDTV.x264-mSD
+               # [ www.Torrenting.com ] - Game.of.Thrones.S03E06.HDTV.XviD-AFG
+               # [ www.Torrenting.com ] - Men.at.Work.S02E06.HDTV.XviD-AFG
+               '''
+               ^(\[.+\][ -]+)?                             # likely a web address, surrounded by [ and ]
+               ((?P<series_name>.+?)[. _-]+)?              # Show_Name and separator
+               s(?P<season_num>\d+)[. _-]*                 # S01 and optional separator
+               e(?P<ep_num>\d+)                            # E02 and separator
+               (([. _-]*e|-)                               # linking e/- char
+               (?P<extra_ep_num>(?!(1080|720)[pi])\d+))*   # additional E03/etc
+               [. _-]*((?P<extra_info>.+?)                 # Source_Quality_Etc-
+               ((?<![. _-])(?<!WEB)                        # Make sure this is really the release group
+               -(?P<release_group>[^- ]+))?)?$             # Group
+               '''),
+              
               ('standard',
                # Show.Name.S01E02.Source.Quality.Etc-Group
                # Show Name - S01E02 - My Ep Name
