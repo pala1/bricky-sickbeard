@@ -28,6 +28,7 @@ import traceback
 import re
 import base64
 import time
+from pprint import pprint
 
 import sickbeard
 
@@ -510,6 +511,7 @@ class TorrentProvider(GenericProvider):
         logger.log(u"Downloading a result from " + self.name+" at " + result.url)
         
         if sickbeard.USE_LIBTORRENT:
+            logger.log(u'** Asked to download torrent result via libtorrent for {0}'.format(repr(result.episodes)), logger.DEBUG)
             # libtorrent can download torrent files from urls, but it's probably safer for us
             # to do it first so that we can report errors immediately.
             if result.url and (result.url.startswith('http://') or result.url.startswith('https://')):
@@ -523,7 +525,7 @@ class TorrentProvider(GenericProvider):
                 torrent = result.url
                 
             if torrent:
-                return downloader.download_from_torrent(torrent)
+                return downloader.download_from_torrent(torrent=torrent, episodes=result.episodes)
             else:
                 logger.log(u'Failed to retrieve torrent from "{0}"'.format(result.url), logger.ERROR)
                 return False

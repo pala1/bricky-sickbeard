@@ -3,18 +3,22 @@ Created on Apr 24, 2013
 
 @author: Dermot Buckley, dermot@buckley.ie
 '''
+from __future__ import with_statement # This isn't required in Python 2.6
 
 import time
 import os.path
 import pickle
 import hashlib
+import threading
 
 from sickbeard import logger
 from sickbeard import version
+from sickbeard import helpers
 from sickbeard.exceptions import ex
 from sickbeard.helpers import isMediaFile
 from sickbeard import postProcessor
 from sickbeard import exceptions
+from sickbeard.tv import TVEpisode, TVShow
 import sickbeard
 
 LIBTORRENT_AVAILABLE = False
@@ -48,7 +52,7 @@ def get_running_torrents():
 
 
 
-def download_from_torrent(torrent, postProcessingDone=False, start_time=None, key=None):
+def download_from_torrent(torrent, postProcessingDone=False, start_time=None, key=None, episodes=[]):
     """
     Download the files from a magnet link or torrent url.
     Returns True if the download begins, and forks off a thread to complete the download.
@@ -59,10 +63,13 @@ def download_from_torrent(torrent, postProcessingDone=False, start_time=None, ke
     @param postProcessingDone: (bool) If true, the torrent will be flagged as "already post processed".
     @param start_time: (int) Start time timestamp.  If None (the default), the current timestamp is used. 
     @param key: (string) Unique key to identify torrent.  Just used internally.  If none, a default is generated. 
+    @param episodes: ([TVEpisode]) list of TVEpisode objects for which the download applies.
     @return: (bool) True if the download *starts*, False otherwise.
     """
-
     global running_torrents
+    
+    logger.log(u'episodes: {0}'.format(repr(episodes)), logger.DEBUG)
+    
     try:
         sess = _get_session()
         atp = {}    # add_torrent_params
@@ -97,6 +104,7 @@ def download_from_torrent(torrent, postProcessingDone=False, start_time=None, ke
     
         #handles.append(h)
         running_torrents.append({
+            'lock': threading.Lock(),
             'name': name_to_use,
             'torrent': torrent,
             'key': md5(torrent) if key is None else key,
@@ -112,6 +120,7 @@ def download_from_torrent(torrent, postProcessingDone=False, start_time=None, ke
             'ratio': 0.0,
             'paused': False,
             'error': None,
+            'episodes': episodes,
         })
         running_torrent_ptr = running_torrents[len(running_torrents) - 1]
     
@@ -151,6 +160,19 @@ def download_from_torrent(torrent, postProcessingDone=False, start_time=None, ke
     except Exception, e:
         logger.log('Error trying to download via libtorrent: ' + ex(e), logger.ERROR)
         return False
+    
+def delete_torrent(key, deleteFilesToo=True):
+    """
+    Delete a running torrent by key.
+    @return: (bool, string) Tuple with (success, errorMessage)
+    """
+    global running_torrents
+    theEntry = next(d for d in running_torrents if d['key'] == key)
+    if theEntry:
+        _remove_torrent_by_handle(theEntry['handle'], deleteFilesToo)
+        return (True, u'')
+    else:
+        return (False, u'Torrent not found')
     
 def set_max_dl_speed(max_dl_speed):
     """
@@ -231,7 +253,7 @@ def md5(string):
     hasher.update(string)
     return hasher.hexdigest()
 
-def _remove_torrent_by_handle(h):
+def _remove_torrent_by_handle(h, deleteFilesToo=True):
     global running_torrents
     sess = _get_session(False)
     if sess:
@@ -243,7 +265,7 @@ def _remove_torrent_by_handle(h):
             os.remove(fr_file)
         except Exception:
             pass
-        sess.remove_torrent(theEntry['handle'], 1)
+        sess.remove_torrent(theEntry['handle'], 1 if deleteFilesToo else 0)
         
 def _get_running_torrents_pickle_path(createDirsIfNeeded=False):
     torrent_save_dir = _get_running_path(createDirsIfNeeded)
@@ -252,11 +274,22 @@ def _get_running_torrents_pickle_path(createDirsIfNeeded=False):
 def _load_saved_torrents(deleteSaveFile=True):
     torrent_save_file = _get_running_torrents_pickle_path(False)
     if os.path.isfile(torrent_save_file):
-        data_from_pickle = pickle.load(open(torrent_save_file, "rb"))
-        for td in data_from_pickle:
-            download_from_torrent(td['torrent'], postProcessingDone=td['post_processed'],
-                                  start_time=td['start_time'],
-                                  key=td['key'])
+        try:
+            data_from_pickle = pickle.load(open(torrent_save_file, "rb"))
+            for td in data_from_pickle:
+                if 'episodes' not in td: # older pickles won't have this
+                    td['episodes'] = []
+                tvEpObjs = []
+                for ep in td['episodes']:
+                    shw = helpers.findCertainShow(sickbeard.showList, ep['tvdbid'])
+                    tvEpObjs.append(TVEpisode(show=shw, season=ep['season'], episode=ep['episode']))
+                download_from_torrent(td['torrent'], 
+                                      postProcessingDone=td['post_processed'],
+                                      start_time=td['start_time'],
+                                      key=td['key'],
+                                      episodes=tvEpObjs)
+        except Exception, e:
+            logger.log(u'Failure while reloading running torrents: {0}'.format(ex(e)), logger.ERROR)
         if deleteSaveFile:
             os.remove(torrent_save_file)
     
@@ -265,12 +298,21 @@ def _save_running_torrents():
     if len(running_torrents):
         data_to_pickle = []
         for torrent_data in running_torrents:
+            
+            # we can't pick TVEpisode objects, so we just pickle the useful info
+            # from the, namely the show, season, and episode.
+            eps = []
+            for ep in torrent_data['episodes']:
+                eps.append({'tvdbid': ep.show.tvdbid, 'season': ep.season, 'episode': ep.episode })
+            
             data_to_pickle.append({
-                'torrent': torrent_data['torrent'],
-                'post_processed': torrent_data['post_processed'],
-                'start_time': torrent_data['start_time'],
-                'key': torrent_data['key'],
+                'torrent'           : torrent_data['torrent'],
+                'post_processed'    : torrent_data['post_processed'],
+                'start_time'        : torrent_data['start_time'],
+                'key'               : torrent_data['key'],
+                'episodes'          : eps,
             })
+            #logger.log(repr(data_to_pickle), logger.DEBUG)
         torrent_save_file = _get_running_torrents_pickle_path(True)
         logger.log(u'Saving running torrents to "{0}"'.format(torrent_save_file), logger.DEBUG)
         pickle.dump(data_to_pickle, open(torrent_save_file, "wb"))
@@ -345,39 +387,48 @@ class TorrentProcessHandler():
                 
                 if s.state in [lt.torrent_status.seeding,
                                lt.torrent_status.finished]:
-                    if not torrent_data['post_processed']:
-                        # torrent has just completed download, so we need to do
-                        # post-processing on it.
-                        torrent_data['post_processed'] = True
-                        ti = torrent_data['handle'].get_torrent_info()
-                        any_file_success = False
-                        for f in ti.files():
-                            fullpath = os.path.join(sickbeard.LIBTORRENT_WORKING_DIR, 'data', f.path)
-                            logger.log(u'Post-processing "{0}"'.format(fullpath), logger.DEBUG)
-                            if isMediaFile(fullpath):
-                                logger.log(u'this is a media file', logger.DEBUG)
-                                try:
-                                    processor = postProcessor.PostProcessor(fullpath, name)
-                                    if processor.process(forceKeepOriginalFiles=True):
-                                        logger.log(u'Success post-processing "{0}"'.format(fullpath), logger.DEBUG)
-                                        any_file_success = True
-                                except exceptions.PostProcessingFailed, e:
-                                    logger.log(u'Failed post-processing file "{0}" with error "{1}"'.format(fullpath, ex(e)), 
-                                               logger.ERROR)
-                                    
-                        if not any_file_success:
-                            logger.log(u'When post-processing the completed torrent {0}, no useful files were found.'.format(name), logger.ERROR)
-                    else:
-                        # post-processing has already been performed.  So we just 
-                        # need to ensure check the ratio and delete the torrent
-                        # if we're good.
-                        if currentRatio >=  sickbeard.LIBTORRENT_SEED_TO_RATIO:
-                            logger.log(u'Torrent "{0}" has seeded to ratio {1}.  Removing it.'.format(name, currentRatio), logger.MESSAGE)
-                            _remove_torrent_by_handle(torrent_data['handle'])
+                    with torrent_data['lock']:
+                        # this is the post-processing & removing code, so make sure that there's
+                        # only one thread doing either here, as the two could easily interfere with
+                        # one another
+                        if not torrent_data['post_processed']:
+                            # torrent has just completed download, so we need to do
+                            # post-processing on it.
+                            ti = torrent_data['handle'].get_torrent_info()
+                            any_file_success = False
+                            for f in ti.files():
+                                fullpath = os.path.join(sickbeard.LIBTORRENT_WORKING_DIR, 'data', f.path)
+                                logger.log(u'Post-processing "{0}"'.format(fullpath), logger.DEBUG)
+                                if isMediaFile(fullpath):
+                                    logger.log(u'this is a media file', logger.DEBUG)
+                                    try:
+                                        processor = postProcessor.PostProcessor(fullpath, name)
+                                        if processor.process(forceKeepOriginalFiles=True):
+                                            logger.log(u'Success post-processing "{0}"'.format(fullpath), logger.DEBUG)
+                                            any_file_success = True
+                                    except exceptions.PostProcessingFailed, e:
+                                        logger.log(u'Failed post-processing file "{0}" with error "{1}"'.format(fullpath, ex(e)), 
+                                                   logger.ERROR)
+                                        
+                            if not any_file_success:
+                                logger.log(u'When post-processing the completed torrent {0}, no useful files were found.'.format(name), logger.ERROR)
+                                
+                            torrent_data['post_processed'] = True
                         else:
-                            if logTorrentStatus:
-                                self.lastTorrentStatusLogTS = time.time()
-                                logger.log(u'"{0}" seeding {1:.3f}'.format(name, currentRatio), logger.DEBUG)
+                            # post-processing has already been performed.  So we just 
+                            # need to ensure check the ratio and delete the torrent
+                            # if we're good.
+                            if currentRatio >= sickbeard.LIBTORRENT_SEED_TO_RATIO:
+                                logger.log(u'Torrent "{0}" has seeded to ratio {1}.  Removing it.'.format(name, currentRatio), logger.MESSAGE)
+                                deleteFilesToo = True
+                                if not torrent_data['post_processed']:
+                                    logger.log(u'Torrent has not been post_processed.  Keeping files.', logger.MESSAGE)
+                                    deleteFilesToo = False
+                                _remove_torrent_by_handle(torrent_data['handle'], deleteFilesToo)
+                            else:
+                                if logTorrentStatus:
+                                    self.lastTorrentStatusLogTS = time.time()
+                                    logger.log(u'"{0}" seeding {1:.3f}'.format(name, currentRatio), logger.DEBUG)
                 elif s.state == lt.torrent_status.downloading:
                     if logTorrentStatus:
                         self.lastTorrentStatusLogTS = time.time()

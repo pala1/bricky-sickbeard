@@ -2158,6 +2158,15 @@ class Downloads:
             })
 
         return json.dumps(result)
+    
+    @cherrypy.expose
+    def deleteTorrent(self, key=None):
+        result = { 'success': True }
+        success, errorMessage = downloader.delete_torrent(key)
+        if not success:
+            result['success'] = False
+            result['errorMessage'] = errorMessage
+        return json.dumps(result)
 
 class Home:
 

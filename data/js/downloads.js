@@ -9,6 +9,8 @@ function torrentSortFunc(a, b) {
 
 function createRowForTorrent(tKey) {
 	var r = $('<tr id="row_' + tKey + '" class="torrent_row" data-key="' + tKey + '">' +
+			'<td id="delete_' + tKey + '"><a href="#" onclick="deleteTorrent(\'' + tKey + '\'); return false;"><img src="' +
+	    		sbRoot + '/images/cancel.png" style="width: 16px; height: 16px" title="Cancel/Delete this torrent" /></a></td>' +
 		    '<td id="name_' + tKey + '"></td>' +
 		    '<td id="status_' + tKey + '" class="nowrap" align="center"></td>' +
 		    '<td id="size_' + tKey + '" align="right"></td>' +
@@ -22,6 +24,28 @@ function createRowForTorrent(tKey) {
 	return r;
 }
 
+function deleteTorrent(tKey) {
+	var torrentInfo = null;
+	for (var i=0; i<displayedDownloads.length; i++) {
+	    if (displayedDownloads[i]['key'] == tKey) torrentInfo = displayedDownloads[i];
+	}
+	if (torrentInfo && confirm('Delete the torrent "' + torrentInfo['name'] + '"?')) {
+		$('#row_' + tKey).remove();
+		$.ajax({ 
+				url: sbRoot + '/downloads/deleteTorrent',
+				data: { key: tKey }
+		}).done(function ( data ) {
+			if (data.error) {
+				alert(data.errorMessage);
+			} else {
+				$('#row_' + tKey).remove();
+			}
+		});
+	}
+}
+
+var displayedDownloads = null;
+
 (function updateRunningTorrents() {
     $.ajax({
         url: sbRoot + '/downloads/getRunningTorrents',
@@ -30,6 +54,8 @@ function createRowForTorrent(tKey) {
         	//console.log(data);
         	runningTorrentPollFreq = data.length ? 5 : 15;	// every 5 secs while downloading, 15 secs otherwise
         	if (data.length > 1) data.sort(torrentSortFunc);
+        	
+        	displayedDownloads = data;
         	
         	var displayedKeys = [];
         	$('.torrent_row').each(function(i, r) { displayedKeys.push($(r).attr('data-key')); });
