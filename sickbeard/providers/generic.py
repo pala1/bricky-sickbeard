@@ -587,7 +587,7 @@ class TorrentProvider(GenericProvider):
         try:
             if sickbeard.PREFER_MAGNETS:
                 try:
-                    url = helpers.get_xml_text(item.getElementsByTagName('magentURI')[0])
+                    url = helpers.get_xml_text(item.getElementsByTagName('magnetURI')[0])
                 except Exception:
                     pass
             if url is None:
