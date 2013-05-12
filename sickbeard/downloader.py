@@ -68,7 +68,7 @@ def download_from_torrent(torrent, postProcessingDone=False, start_time=None, ke
     """
     global running_torrents
     
-    logger.log(u'episodes: {0}'.format(repr(episodes)), logger.DEBUG)
+    #logger.log(u'episodes: {0}'.format(repr(episodes)), logger.DEBUG)
     
     try:
         sess = _get_session()

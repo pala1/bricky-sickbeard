@@ -511,7 +511,6 @@ class TorrentProvider(GenericProvider):
         logger.log(u"Downloading a result from " + self.name+" at " + result.url)
         
         if sickbeard.USE_LIBTORRENT:
-            logger.log(u'** Asked to download torrent result via libtorrent for {0}'.format(repr(result.episodes)), logger.DEBUG)
             # libtorrent can download torrent files from urls, but it's probably safer for us
             # to do it first so that we can report errors immediately.
             if result.url and (result.url.startswith('http://') or result.url.startswith('https://')):
