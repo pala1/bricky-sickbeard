@@ -14,7 +14,8 @@ function doAddTorrent(dlg) {
 					url: '$sbRoot/downloads/addTorrentByUrl',
 					data: { url: torr_url }
 			}).done(function (data) {
-				if (data.error) {
+				console.log(data);
+				if (!data.success) {
 					alert(data.errorMessage);
 				} else {
 					\$(dlg).dialog('close');

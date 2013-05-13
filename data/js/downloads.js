@@ -45,7 +45,9 @@ function deleteTorrent(tKey) {
 }
 
 function addTorrent() {
-	var tag = $("<div></div>"); 
+    var tag = $("#dialogHolder");
+    if(!tag.length)
+        tag = $("<div id='dialogHolder'></div>");
 	$.ajax({
 		url: sbRoot + '/downloads/dlgAddTorrent',
 		type: 'GET',
