@@ -44,6 +44,31 @@ function deleteTorrent(tKey) {
 	}
 }
 
+function addTorrent() {
+	var tag = $("<div></div>"); 
+	$.ajax({
+		url: sbRoot + '/downloads/dlgAddTorrent',
+		type: 'GET',
+		beforeSend: function() {},
+		error: function() {},
+		complete: function() {},
+		success: function(data, textStatus, jqXHR) {
+			tag.html(data).dialog({
+				modal: true, 
+				resizable: false,
+				width: 500,
+				title: 'Add Torrent',
+				buttons: {
+					'Add Torrent': function() {
+						doAddTorrent(this);
+					},
+					'Cancel': function() { $(this).dialog('close'); }
+				},
+			});
+		}
+	});
+}
+
 var displayedDownloads = null;
 
 (function updateRunningTorrents() {
@@ -115,3 +140,8 @@ var displayedDownloads = null;
         timeout: 2000
     });
 })();
+
+
+
+
+

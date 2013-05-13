@@ -51,6 +51,7 @@ from sickbeard.webapi import Api
 from sickbeard.scene_exceptions import get_scene_exceptions
 from sickbeard.custom_exceptions import get_custom_exceptions, set_custom_exceptions
 from sickbeard.scene_numbering import get_scene_numbering, set_scene_numbering, get_scene_numbering_for_show
+from sickbeard.providers.generic import TorrentProvider
 
 from lib.tvdb_api import tvdb_api
 
@@ -2143,6 +2144,10 @@ class Downloads:
         for t in downloader.get_running_torrents():
             # we only return the useful info
             
+            eps = []
+            for ep in t['episodes']:
+                eps.append({'tvdbid': ep.show.tvdbid, 'season': ep.season, 'episode': ep.episode })
+            
             result.append({
                 'key'       : t['key'],
                 'name'      : t['name'],
@@ -2155,6 +2160,7 @@ class Downloads:
                 'ratio'     : t['ratio'],
                 'paused'    : t['paused'],
                 'error'     : t['error'],
+                'episodes'  : eps,
             })
 
         return json.dumps(result)
@@ -2166,6 +2172,40 @@ class Downloads:
         if not success:
             result['success'] = False
             result['errorMessage'] = errorMessage
+        return json.dumps(result)
+    
+    @cherrypy.expose
+    def dlgAddTorrent(self):
+        t = PageTemplate(file="dlgAddTorrent.tmpl")
+        return _munge(t)
+    
+    @cherrypy.expose
+    def addTorrentByUrl(self, url=None):
+        cherrypy.response.headers['Content-Type'] = 'application/json'
+        result = { 'success': True }
+        torrent = None
+        
+        if not url:
+            result['success'] = False
+            result['errorMessage'] = u'URL not supplied'
+        else:
+            if url.startswith('http://') or url.startswith('https://'):
+                torrent = helpers.getURL(url)
+                if not TorrentProvider.is_valid_torrent_data(torrent):
+                    result['errorMessage'] = u'The torrent retrieved from "{0}" is not a valid torrent file.'.format(url)
+                    result['success'] = False
+                    torrent = None
+            elif url.startswith('magnet:'):
+                torrent = url
+            else:
+                result['success'] = False
+                result['errorMessage'] = u'http, https, or magnet link required.'
+                
+        if torrent:
+            result['success'] = downloader.download_from_torrent(torrent=torrent)
+            if not result['success']:
+                result['errorMessage'] = 'Failed to start or download the torrent.'
+
         return json.dumps(result)
 
 class Home:
