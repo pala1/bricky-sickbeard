@@ -32,7 +32,7 @@ except ImportError:
     logger.log('libtorrent import failed, functionality will not be available', logger.MESSAGE)
     
 # the number of seconds we wait after adding a torrent to see signs of download beginning
-TORRENT_START_WAIT_TIMEOUT_SECS = 90
+TORRENT_START_WAIT_TIMEOUT_SECS = 120
 
 # The actual running lt session.  Obtain it by calling _get_session() - which
 # will create it if needed.
@@ -82,7 +82,7 @@ def download_from_torrent(torrent, postProcessingDone=False, start_time=None, ke
         if torrent.startswith('magnet:') or torrent.startswith('http://') or torrent.startswith('https://'):
             logger.log(u'Adding torrent to session: {0}'.format(torrent), logger.DEBUG)
             atp["url"] = torrent
-            name_to_use = None
+            name_to_use = '-'
             total_size_to_use = -1
         else:
             e = lt.bdecode(torrent)
@@ -130,8 +130,8 @@ def download_from_torrent(torrent, postProcessingDone=False, start_time=None, ke
         startedDownload = False
         while not startedDownload:
             time.sleep(0.5)
+            s = h.status(0x0) # 0x0 because we don't want any of the optional info
             if h.has_metadata():
-                s = h.status(0x0) # 0x0 because we don't want any of the optional info
                 i = h.get_torrent_info()
                 name = i.name()
                 running_torrent_ptr['status'] = str(s.state)
@@ -143,11 +143,16 @@ def download_from_torrent(torrent, postProcessingDone=False, start_time=None, ke
                                lt.torrent_status.downloading,
                                lt.torrent_status.finished, 
                                lt.torrent_status.downloading_metadata]:
-                    logger.log(u'Torrent "{0}" has state "{1}" ({2}), interpreting as downloading'.format(name, s.state, repr(s.state)), 
+                    logger.log(u'Torrent "{0}" has state "{1}" ({2}), interpreting as snatched'.format(name, s.state, repr(s.state)), 
                                logger.MESSAGE)
                     return True
+            elif s.state is lt.torrent_status.downloading_metadata and torrent.startswith('magnet:'):
+                # if it's a magnet, 'downloading_metadata' is considered a success
+                logger.log(u'Torrent has state "{1}" ({2}), interpreting as snatched'.format(s.state, repr(s.state)), 
+                               logger.MESSAGE)
+                return True
             else:
-                # no metadata?  Definitely not started yet then!
+                # no metadata and not a magnet?  Definitely not started yet then!
                 pass
             
             # check for timeout
@@ -299,7 +304,7 @@ def _save_running_torrents():
         data_to_pickle = []
         for torrent_data in running_torrents:
             
-            # we can't pick TVEpisode objects, so we just pickle the useful info
+            # we can't pickle TVEpisode objects, so we just pickle the useful info
             # from the, namely the show, season, and episode.
             eps = []
             for ep in torrent_data['episodes']:
