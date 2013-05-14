@@ -444,7 +444,8 @@ class TorrentProvider(GenericProvider):
 
         self.providerType = GenericProvider.TORRENT
         
-    def getHashFromMagnet(self, magnet):
+    @classmethod
+    def getHashFromMagnet(cls, magnet):
         """
         Pull the hash from a magnet link (if possible).
         Handles the various possible encodings etc. 
@@ -524,7 +525,7 @@ class TorrentProvider(GenericProvider):
                 torrent = result.url
                 
             if torrent:
-                return downloader.download_from_torrent(torrent=torrent, episodes=result.episodes)
+                return downloader.download_from_torrent(torrent=torrent, filename=result.name, episodes=result.episodes)
             else:
                 logger.log(u'Failed to retrieve torrent from "{0}"'.format(result.url), logger.ERROR)
                 return False

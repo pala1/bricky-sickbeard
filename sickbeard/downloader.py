@@ -10,6 +10,7 @@ import os.path
 import pickle
 import hashlib
 import threading
+import traceback
 
 from sickbeard import logger
 from sickbeard import version
@@ -51,15 +52,33 @@ def get_running_torrents():
     return running_torrents
 
 
+def _make_key_from_torrent(torrent):
+    """
+    Will attempt to return the hash from the torrent if it is reasonably obtainable (i.e. without
+    having to download the torrent file), otherwise it will return an md5 of the link to the torrent
+    file.
+    
+    @param torrent: (string) url (http or https) to a torrent file, a raw torrent file, or a magnet link
+    @return: (string) a key
+    """
+    if torrent.startswith('magnet:'):
+        from sickbeard.providers.generic import TorrentProvider
+        return TorrentProvider.getHashFromMagnet(torrent)
+    elif torrent.startswith('http://') or torrent.startswith('https://'):
+        return md5(torrent)
+    else:
+        torrent_info = lt.torrent_info(lt.bdecode(torrent))
+        return str(torrent_info.info_hash())
 
-def download_from_torrent(torrent, postProcessingDone=False, start_time=None, key=None, episodes=[]):
+def download_from_torrent(torrent, filename=None, postProcessingDone=False, start_time=None, key=None, episodes=[]):
     """
     Download the files from a magnet link or torrent url.
-    Returns True if the download begins, and forks off a thread to complete the download.
+    Returns True if the download begins.
     Note: This function will block until the download gives some indication that it
     has started correctly (or TORRENT_START_WAIT_TIMEOUT_SECS is reached).
     
     @param torrent: (string) url (http or https) to a torrent file, a raw torrent file, or a magnet link.
+    @param filename: (string) Filename to use while retrieving metadata (only used for urls)
     @param postProcessingDone: (bool) If true, the torrent will be flagged as "already post processed".
     @param start_time: (int) Start time timestamp.  If None (the default), the current timestamp is used. 
     @param key: (string) Unique key to identify torrent.  Just used internally.  If none, a default is generated. 
@@ -67,6 +86,15 @@ def download_from_torrent(torrent, postProcessingDone=False, start_time=None, ke
     @return: (bool) True if the download *starts*, False otherwise.
     """
     global running_torrents
+    
+    try:
+        key_to_use = _make_key_from_torrent(torrent) if key is None else key
+        if _find_running_torrent_by_field('key', key_to_use):
+            logger.log(u'Attempt to add the same torrent twice: ' + key_to_use, logger.ERROR)
+            return False
+    except Exception, ea:
+        logger.log(u'Error in initial parse of torrent ' + ex(ea), logger.ERROR)
+        return False
     
     #logger.log(u'episodes: {0}'.format(repr(episodes)), logger.DEBUG)
     
@@ -82,7 +110,7 @@ def download_from_torrent(torrent, postProcessingDone=False, start_time=None, ke
         if torrent.startswith('magnet:') or torrent.startswith('http://') or torrent.startswith('https://'):
             logger.log(u'Adding torrent to session: {0}'.format(torrent), logger.DEBUG)
             atp["url"] = torrent
-            name_to_use = '-'
+            name_to_use = filename
             total_size_to_use = -1
         else:
             e = lt.bdecode(torrent)
@@ -107,7 +135,7 @@ def download_from_torrent(torrent, postProcessingDone=False, start_time=None, ke
             'lock': threading.Lock(),
             'name': name_to_use,
             'torrent': torrent,
-            'key': md5(torrent) if key is None else key,
+            'key': key_to_use,
             'handle': h,
             'post_processed': postProcessingDone,
             'have_torrentFile': have_torrentFile,
@@ -148,7 +176,7 @@ def download_from_torrent(torrent, postProcessingDone=False, start_time=None, ke
                     return True
             elif s.state is lt.torrent_status.downloading_metadata and torrent.startswith('magnet:'):
                 # if it's a magnet, 'downloading_metadata' is considered a success
-                logger.log(u'Torrent has state "{1}" ({2}), interpreting as snatched'.format(s.state, repr(s.state)), 
+                logger.log(u'Torrent has state downloading_metadata, interpreting as snatched', 
                                logger.MESSAGE)
                 return True
             else:
@@ -164,6 +192,13 @@ def download_from_torrent(torrent, postProcessingDone=False, start_time=None, ke
                 
     except Exception, e:
         logger.log('Error trying to download via libtorrent: ' + ex(e), logger.ERROR)
+        logger.log(traceback.format_exc(), logger.DEBUG)
+        try:
+            # remove the entry from running_torrents if it's there
+            theEntry = _find_running_torrent_by_field('key', key_to_use)
+            if theEntry: running_torrents.remove(theEntry)
+        except Exception:
+            pass
         return False
     
 def delete_torrent(key, deleteFilesToo=True):
@@ -172,7 +207,7 @@ def delete_torrent(key, deleteFilesToo=True):
     @return: (bool, string) Tuple with (success, errorMessage)
     """
     global running_torrents
-    theEntry = next(d for d in running_torrents if d['key'] == key)
+    theEntry = _find_running_torrent_by_field('key', key)
     if theEntry:
         _remove_torrent_by_handle(theEntry['handle'], deleteFilesToo)
         return (True, u'')
@@ -262,7 +297,7 @@ def _remove_torrent_by_handle(h, deleteFilesToo=True):
     global running_torrents
     sess = _get_session(False)
     if sess:
-        theEntry = next(d for d in running_torrents if d['handle'] == h)
+        theEntry = _find_running_torrent_by_field('handle', h)
         running_torrents.remove(theEntry)
         try:
             fr_file = os.path.join(_get_save_path(),
@@ -271,6 +306,15 @@ def _remove_torrent_by_handle(h, deleteFilesToo=True):
         except Exception:
             pass
         sess.remove_torrent(theEntry['handle'], 1 if deleteFilesToo else 0)
+        
+def _find_running_torrent_by_field(fieldname, value):
+    global running_torrents
+    #theEntry = next(d for d in running_torrents if d['handle'] == h) -- requires python 2.6
+    matches = [d for d in running_torrents if d[fieldname] == value]
+    if len(matches):
+        return matches[0]
+    else:
+        return False
         
 def _get_running_torrents_pickle_path(createDirsIfNeeded=False):
     torrent_save_dir = _get_running_path(createDirsIfNeeded)
@@ -288,7 +332,7 @@ def _load_saved_torrents(deleteSaveFile=True):
                 for ep in td['episodes']:
                     shw = helpers.findCertainShow(sickbeard.showList, ep['tvdbid'])
                     tvEpObjs.append(TVEpisode(show=shw, season=ep['season'], episode=ep['episode']))
-                download_from_torrent(td['torrent'], 
+                download_from_torrent(torrent=td['torrent'], 
                                       postProcessingDone=td['post_processed'],
                                       start_time=td['start_time'],
                                       key=td['key'],
