@@ -24,6 +24,12 @@ from sickbeard import logger
 from sickbeard import db
 from sickbeard.custom_exceptions import get_custom_exceptions, get_custom_exception_by_name 
 
+# use the built-in if it's available (python 2.6), if not use the included library
+try:
+    import json
+except ImportError:
+    from lib import simplejson as json
+
 def get_scene_exceptions(tvdb_id, ignoreCustom=False):
     """
     Given a tvdb_id, return a list of all the scene exceptions.
@@ -75,34 +81,18 @@ def retrieve_exceptions():
     exception_dict = {}
 
     # Moved the exceptions onto our show-api server (to allow for future source merging)
-    url = 'http://show-api.buckley.ie/s/exceptions.txt'
+    url = 'http://show-api.buckley.ie/api/exceptions'
 
     logger.log(u"Check scene exceptions update")
     url_data = helpers.getURL(url)
+    
 
     if url_data is None:
-        # When urlData is None, trouble connecting to github
         logger.log(u"Check scene exceptions update failed. Unable to get URL: " + url, logger.ERROR)
         return
-
     else:
-        # each exception is on one line with the format tvdb_id: 'show name 1', 'show name 2', etc
-        for cur_line in url_data.splitlines():
-            cur_line = cur_line.decode('utf-8')
-            tvdb_id, sep, aliases = cur_line.partition(':') #@UnusedVariable
-
-            if not aliases:
-                continue
-
-            tvdb_id = int(tvdb_id)
-
-            # regex out the list of shows, taking \' into account
-            alias_list = [re.sub(r'\\(.)', r'\1', x) for x in re.findall(r"'(.*?)(?<!\\)',?", aliases)]
-
-            exception_dict[tvdb_id] = alias_list
-
+        exception_dict = json.loads(url_data)
         myDB = db.DBConnection("cache.db")
-
         changed_exceptions = False
 
         # write all the exceptions we got off the net into the database
