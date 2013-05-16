@@ -785,7 +785,8 @@ class ConfigSearch:
     def saveSearch(self, use_nzbs=None, use_torrents=None, use_vods=None, nzb_dir=None, sab_username=None, sab_password=None,
                        sab_apikey=None, sab_category=None, sab_host=None, nzbget_password=None, nzbget_category=None, nzbget_host=None,
                        torrent_dir=None, nzb_method=None, usenet_retention=None, search_frequency=None, download_propers=None,
-                       use_libtorrent=None, seed_to_ratio=None, max_dl_speed=None, max_ul_speed=None, libtorrent_working_dir=None):
+                       use_libtorrent=None, seed_to_ratio=None, max_dl_speed=None, max_ul_speed=None, libtorrent_working_dir=None,
+                       ignore_words=None):
 
         results = []
 
@@ -866,6 +867,9 @@ class ConfigSearch:
 
         if usenet_retention == None:
             usenet_retention = 200
+            
+        ignore_words = [w for w in ignore_words.strip().splitlines() if w.strip() <> '']
+        sickbeard.IGNORE_WORDS = ','.join(ignore_words)
 
         sickbeard.USE_NZBS = use_nzbs
         sickbeard.USE_TORRENTS = use_torrents

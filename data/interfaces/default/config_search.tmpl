@@ -45,6 +45,22 @@
                                 <span class="component-desc">Time in minutes between searches (eg. 60)</span>
                             </label>
                         </div>
+                        
+                        <div class="field-pair">
+                            <label class="nocheck clearfix">
+                                <span class="component-title">Blacklisted Words (IGNORE_WORDS)</span>
+<textarea rows="6" cols="50" name="ignore_words" id="ignore_words" style="text-align: left">
+#for $ignore_word in $sickbeard.IGNORE_WORDS.split(',')
+$ignore_word
+#end for
+</textarea>
+                            </label>
+                            <label class="nocheck clearfix">
+                                <span class="component-title">&nbsp;</span>
+                                <span class="component-desc">Sickbeard will ignore any result that contains any of these words.
+                                <br />One word per line.  cAsE is ignored.</span>
+                            </label>
+                        </div>
 
                         <div class="clearfix"></div>
                         <input type="submit" class="btn config_submitter" value="Save Changes" /><br/>
