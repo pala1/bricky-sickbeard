@@ -255,6 +255,15 @@ def _get_session(createIfNeeded=True):
                                 #lt.alert.category_t.tracker_notification |
                                 lt.alert.category_t.status_notification |
                                 lt.alert.category_t.performance_warning)
+        try:
+            state = {} # @todo: save/restore this
+            _lt_sess.start_dht(state)
+            _lt_sess.add_dht_router('router.bittorrent.com', 6881)
+            _lt_sess.add_dht_router('router.utorrent.com', 6881)
+            _lt_sess.add_dht_router('router.bitcomet.com', 6881)
+        except Exception:
+            # just ignore any dht errors, this is just for bootstrapping
+            pass
         
     return _lt_sess
 
