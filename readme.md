@@ -5,7 +5,7 @@ Specifically it includes
 * Integrated torrent client (provided python-libtorrent is available).  Enable it by selecting Config -> Search Settings -> Torrent Method -> Integrated.  [See here for more info](http://brickybox.com/2013/05/09/sickbeard-with-integrated-torrent-client).
 * Support for Custom RSS Torrent feeds.  [See here for more info](http://brickybox.com/2013/04/24/sickbeard-manual-rss-custom-torrent-providers).
 * Support for the [ShowRSS](http://showrss.karmorra.info/) torrent feed (with backlog support).
-* Support for [dailytvtorrents](http://www.dailytvtorrents.org/) with backlog.
+* Support for [dailytvtorrents](http://www.dailytvtorrents.org/) with backlog (Note: DailyTvTorrents is currently offline, so this may be removed completely in the near future).
 * Support for [PublicHD](http://publichd.se/).
 * Support for iPlayer downloads (via the [get_iplayer perl script](http://www.infradead.org/get_iplayer/html/get_iplayer.html)). [See here for how to set this up](http://brickybox.com/2013/03/05/sickbeard-iplayer-requirements).
 * A UI for adding custom (local) scene exception names.
@@ -22,7 +22,7 @@ See [here](http://brickybox.com/2012/09/24/sickbeard-fork-feature-summary) for s
 
 * * *
 
-* The original readme from Sick Beard is available [here](https://github.com/midgetspy/Sick-Beard/blob/master/readme.md).*
+*The original readme from Sick Beard is available [here](https://github.com/midgetspy/Sick-Beard/blob/master/readme.md).*
 
 * * *
 
