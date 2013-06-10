@@ -14,7 +14,7 @@ Specifically it includes
 * Support for scene numbering at the episode level.  If scene numbering does not agree with tvdb numbering (as is often the case) the show will still be downloaded and saved correctly.
 * Support for magnet links.
 
-Requires Python 2.5, 2.6, or 2.7, and Cheetah 2.1.0 or later.
+Requires Python 2.5, 2.6, or 2.7.
 
 
 See [here](http://brickybox.com/2012/09/24/sickbeard-fork-feature-summary) for some further info.  

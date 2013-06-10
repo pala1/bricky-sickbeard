@@ -22,34 +22,39 @@ import sys
 if sys.version_info < (2, 5):
     print "Sorry, requires Python 2.5, 2.6 or 2.7."
     sys.exit(1)
+    
+import os
+    
+# Root path
+base_path = os.path.dirname(os.path.abspath(__file__))
+# Insert local directories into path
+sys.path.insert(0, os.path.join(base_path, 'lib'))
 
 try:
     import Cheetah
     if Cheetah.Version[0] != '2':
         raise ValueError
 except ValueError:
-    print "Sorry, requires Python module Cheetah 2.1.0 or newer."
-    sys.exit(1)
+    print "Your site Cheetah is older than 2.1.0.  Falling back to local (python-only) version"
+    import Cheetah_local
+    sys.modules['Cheetah'] = Cheetah_local
 except:
-    print "The Python module Cheetah is required"
-    sys.exit(1)
+    print "No site Cheetah found, falling back to local (python-only) version"
+    import Cheetah_local
+    sys.modules['Cheetah'] = Cheetah_local
 
 # We only need this for compiling an EXE and I will just always do that on 2.6+
 if sys.hexversion >= 0x020600F0:
     from multiprocessing import freeze_support
 
 import locale
-import os
 import threading
 import time
 import signal
 import traceback
 import getopt
 
-# Root path
-base_path = os.path.dirname(os.path.abspath(__file__))
-# Insert local directories into path
-sys.path.insert(0, os.path.join(base_path, 'lib'))
+
 
 import sickbeard
 
