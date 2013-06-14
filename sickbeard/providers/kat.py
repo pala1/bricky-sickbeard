@@ -43,7 +43,7 @@ class KATProvider(generic.TorrentProvider):
 
         self.cache = KATCache(self)
 
-        self.url = 'http://kat.ph/'
+        self.url = 'http://kickass.to/'
 
     def isEnabled(self):
         return sickbeard.KAT
