@@ -1,4 +1,4 @@
-# About this fork
+# Sickbeard for Torrents
 
 This is a fork of the incredible [Sick Beard](https://github.com/midgetspy/Sick-Beard), with some additions regarding torrent support and some other areas.  
 Specifically it includes
