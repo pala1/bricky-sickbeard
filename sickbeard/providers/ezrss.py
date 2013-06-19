@@ -45,7 +45,7 @@ class EZRSSProvider(generic.TorrentProvider):
         # These are backup feeds, tried in order if the main feed fails.
         # (these just provide "latest", no backlog)
         self.backup_feeds = ['https://rss.thepiratebay.se/user/d17c6a45441ce0bc0c057f19057f95e1',
-                             'http://search.twitter.com/search.rss?rpp=30&q=from%3Aeztv_it',
+                             #'http://search.twitter.com/search.rss?rpp=30&q=from%3Aeztv_it',
                              'http://feeds.feedburner.com/eztv-rss-atom-feeds?format=xml&max-results=30' ]
 
     def isEnabled(self):
