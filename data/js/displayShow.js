@@ -173,8 +173,8 @@ $(document).ready(function(){
     	var sbRoot = $('#sbRoot').val();
     	var showId = $('#showID').val();
     	
-    	if (sceneSeason === '' || sceneSeason === null) sceneSeason = forSeason;
-    	if (sceneEpisode === '' || sceneEpisode === null) sceneEpisode = forEpisode;
+    	if (sceneSeason === '') sceneSeason = null;
+    	if (sceneEpisode === '') sceneEpisode = null;
     	
     	$.getJSON(sbRoot + '/home/setEpisodeSceneNumbering', 
 			{ 
@@ -184,60 +184,43 @@ $(document).ready(function(){
     			'sceneSeason': sceneSeason, 
     			'sceneEpisode': sceneEpisode
 			}, 
-	    	function(data){
-	            if (data.success) 
+	    	function(data) {
+				//	Set the values we get back 
+				if (data.sceneSeason === null || data.sceneEpisode === null)
+				{
+					$('#sceneSeasonXEpisode_' + showId + '_' + forSeason +'_' + forEpisode).val('');
+				}
+				else
+				{
+					$('#sceneSeasonXEpisode_' + showId + '_' + forSeason +'_' + forEpisode).val(data.sceneSeason + 'x' + data.sceneEpisode);
+				}
+	            if (!data.success) 
 	            {
-	            	//  if either the season or episode is now blank,
-	            	//	we copy the correct values into them
-	            	if ($('#sceneSeason_' + showId + '_' + forSeason +'_' + forEpisode).val() == '') {
-	            		$('#sceneSeason_' + showId + '_' + forSeason +'_' + forEpisode).val(forSeason);
-	            	}
-	            	
-	            	if ($('#sceneEpisode_' + showId + '_' + forSeason +'_' + forEpisode).val() == '') {
-	            		$('#sceneEpisode_' + showId + '_' + forSeason +'_' + forEpisode).val(forEpisode);
-	            	}
-	            }
-	            else
-	            {
-	            	//	if the update fails, then we need to restore the values sent
-	            	//	back to us.
-	            	if (typeof (data.sceneSeason) != 'undefined') {
-	            		$('#sceneSeason_' + showId + '_' + forSeason +'_' + forEpisode).val(data.sceneSeason);
-	            	}
-	            	
-	            	if (typeof (data.sceneEpisode) != 'undefined') {
-	            		$('#sceneEpisode_' + showId + '_' + forSeason +'_' + forEpisode).val(data.sceneEpisode);
-	            	}
-	            	
 	            	if (data.errorMessage) {
 	            		alert(data.errorMessage);
+	            	} else {
+	            		alert('Update failed.');
 	            	}
 	            }
 	        }
     	);
     }
     
-    $('.sceneSeason').change(function() {
+    $('.sceneSeasonXEpisode').change(function() {
     	//	Strip non-numeric characters
-    	$(this).val($(this).val().replace(/[^0-9]*/g,''));
+    	$(this).val($(this).val().replace(/[^0-9xX]*/g,''));
     	var forSeason = $(this).attr('data-for-season');
     	var forEpisode = $(this).attr('data-for-episode');
     	var showId = $('#showID').val();
     	
-    	var sceneEpisode = $('#sceneEpisode_' + showId + '_' + forSeason +'_' + forEpisode).val();
-    	
-    	setEpisodeSceneNumbering(forSeason, forEpisode, $(this).val(), sceneEpisode);
-    });
-    
-    $('.sceneEpisode').change(function() {
-    	//	Strip non-numeric characters
-    	$(this).val($(this).val().replace(/[^0-9]*/g,''));
-    	var forSeason = $(this).attr('data-for-season');
-    	var forEpisode = $(this).attr('data-for-episode');
-    	var showId = $('#showID').val();
-    	
-    	var sceneSeason = $('#sceneSeason_' + showId + '_' + forSeason +'_' + forEpisode).val();
-    	
-    	setEpisodeSceneNumbering(forSeason, forEpisode, sceneSeason, $(this).val());
+    	//var sceneEpisode = $('#sceneEpisode_' + showId + '_' + forSeason +'_' + forEpisode).val();
+    	var m = $(this).val().match(/^(\d+)x(\d+)$/i);
+    	var sceneSeason = null, sceneEpisode = null;
+    	if (m)
+    	{
+    		sceneSeason = m[1];
+    		sceneEpisode = m[2];
+    	}
+    	setEpisodeSceneNumbering(forSeason, forEpisode, sceneSeason, sceneEpisode);
     });
 });

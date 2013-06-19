@@ -29,18 +29,30 @@ try:
     import json
 except ImportError:
     from lib import simplejson as json
+    
+# fast dynamic cache (held in memory only)       
+_dyn_cache = {}
 
 def get_scene_exceptions(tvdb_id, ignoreCustom=False):
     """
     Given a tvdb_id, return a list of all the scene exceptions.
     """
+    global _dyn_cache
+    
+    if not tvdb_id:
+        return []
 
-    myDB = db.DBConnection("cache.db")
-    exceptions = myDB.select(u"SELECT show_name FROM scene_exceptions WHERE tvdb_id = ?", [tvdb_id])
+    try: 
+        scene_exceptions = _dyn_cache[str(tvdb_id)]
+    except KeyError:
+        myDB = db.DBConnection("cache.db")
+        scene_exceptions = [x["show_name"] for x in myDB.select("SELECT show_name FROM scene_exceptions WHERE tvdb_id = ?", [tvdb_id])]
+        _dyn_cache[str(tvdb_id)] = scene_exceptions
+
     if ignoreCustom:
-        return [cur_exception["show_name"] for cur_exception in exceptions]
+        return scene_exceptions
     else:
-        return list(set([cur_exception["show_name"] for cur_exception in exceptions] + get_custom_exceptions(tvdb_id)))
+        return list(set(scene_exceptions + get_custom_exceptions(tvdb_id)))
 
 
 def get_scene_exception_by_name(show_name):
@@ -74,10 +86,11 @@ def get_scene_exception_by_name(show_name):
 
 def retrieve_exceptions():
     """
-    Looks up the exceptions on github, parses them into a dict, and inserts them into the
+    Looks up the exceptions on the show-api server, parses them into a dict, and inserts them into the
     scene_exceptions table in cache.db. Also clears the scene name cache.
     """
-
+    global _dyn_cache
+    
     exception_dict = {}
 
     # Moved the exceptions onto our show-api server (to allow for future source merging)
@@ -85,7 +98,6 @@ def retrieve_exceptions():
 
     logger.log(u"Check scene exceptions update")
     url_data = helpers.getURL(url)
-    
 
     if url_data is None:
         logger.log(u"Check scene exceptions update failed. Unable to get URL: " + url, logger.ERROR)
@@ -97,6 +109,9 @@ def retrieve_exceptions():
 
         # write all the exceptions we got off the net into the database
         for cur_tvdb_id in exception_dict:
+            
+            # update our cache
+            _dyn_cache[str(cur_tvdb_id)] = exception_dict[cur_tvdb_id]
 
             # get a list of the existing exceptions for this ID
             existing_exceptions = [x["show_name"] for x in myDB.select("SELECT * FROM scene_exceptions WHERE tvdb_id = ?", [cur_tvdb_id])]
@@ -104,7 +119,15 @@ def retrieve_exceptions():
             for cur_exception in exception_dict[cur_tvdb_id]:
                 # if this exception isn't already in the DB then add it
                 if cur_exception not in existing_exceptions:
+                    logger.log(u'Adding exception {0}: {1}'.format(cur_tvdb_id, cur_exception), logger.DEBUG)
                     myDB.action("INSERT INTO scene_exceptions (tvdb_id, show_name) VALUES (?,?)", [cur_tvdb_id, cur_exception])
+                    changed_exceptions = True
+                    
+            # check for any exceptions which have been deleted
+            for cur_exception in existing_exceptions:
+                if cur_exception not in exception_dict[cur_tvdb_id]:
+                    logger.log(u'Removing exception {0}: {1}'.format(cur_tvdb_id, cur_exception), logger.DEBUG)
+                    myDB.action("DELETE FROM scene_exceptions WHERE tvdb_id = ? AND show_name = ?", [cur_tvdb_id, cur_exception])
                     changed_exceptions = True
 
         # since this could invalidate the results of the cache we clear it out after updating

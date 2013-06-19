@@ -6,23 +6,37 @@ from sickbeard import name_cache
 from sickbeard import logger
 from sickbeard import db
 
-schema_created = False
+_schema_created = False
 def _check_for_schema():
-    global schema_created
-    if not schema_created:
+    global _schema_created
+    if not _schema_created:
         myDB = db.DBConnection()
         myDB.action('CREATE TABLE if not exists custom_exceptions (exception_id INTEGER PRIMARY KEY, tvdb_id INTEGER KEY, show_name TEXT)')
-        schema_created = True
+        _schema_created = True
+ 
+# fast dynamic cache (held in memory only)       
+_dyn_cache = {}
 
 def get_custom_exceptions(tvdb_id):
     """
     Given a tvdb_id, return a list of all the custom scene exceptions.
     """
+    if not tvdb_id:
+        return []
+    
+    global _dyn_cache
+    try: 
+        return _dyn_cache[str(tvdb_id)]
+    except KeyError:
+        pass    # no cached value, just fall through to lookup
+    
     _check_for_schema()
     myDB = db.DBConnection()
         
     exceptions = myDB.select("SELECT show_name FROM custom_exceptions WHERE tvdb_id = ?", [tvdb_id])
-    return [cur_exception["show_name"] for cur_exception in exceptions]
+    result = [cur_exception["show_name"] for cur_exception in exceptions]
+    _dyn_cache[str(tvdb_id)] = result # store for later
+    return result
 
 def get_custom_exception_by_name(show_name):
     """
@@ -55,7 +69,11 @@ def set_custom_exceptions(tvdb_id, show_names):
     Set custom exception list for a show.
     'show_names' is a list of show names.
     """
-
+    global _dyn_cache
+    
+    if not show_names:
+        show_names = []
+        
     myDB = db.DBConnection()
     _check_for_schema()
 
@@ -79,3 +97,6 @@ def set_custom_exceptions(tvdb_id, show_names):
     # since this could invalidate the results of the cache we clear it out after updating
     if changed_exceptions:
         name_cache.clearCache()
+        
+    # put the new list into the dynamic cache
+    _dyn_cache[str(tvdb_id)] = show_names

@@ -217,13 +217,18 @@ class GenericProvider:
     def findEpisode(self, episode, manualSearch=False):
 
         self._checkAuth()
+        
+        # create a copy of the episode, using scene numbering
+        episode_scene = copy.copy(episode)
+        episode_scene.convertToSceneNumbering()
 
-        logger.log(u"Searching "+self.name+" for " + episode.prettyName())
+        logger.log(u'Searching "{0}" for "{1}" as "{2}"'
+                   .format(self.name, episode.prettyName() , episode_scene.prettyName()))
 
         self.cache.updateCache()
-        results = self.cache.searchCache(episode, manualSearch)
-        logger.log(u"Cache results: "+str(results), logger.DEBUG)
-        logger.log(u"manualSearch: "+str(manualSearch), logger.DEBUG)
+        results = self.cache.searchCache(episode_scene, manualSearch)
+        logger.log(u"Cache results: " + str(results), logger.DEBUG)
+        logger.log(u"manualSearch: " + str(manualSearch), logger.DEBUG)
 
         # if we got some results then use them no matter what.
         # OR
@@ -232,10 +237,6 @@ class GenericProvider:
             return results
 
         itemList = []
-        
-        # create a copy of the episode, using scene numbering
-        episode_scene = copy.copy(episode)
-        episode_scene.convertToSceneNumbering()
 
         for cur_search_string in self._get_episode_search_strings(episode_scene):
             itemList += self._doSearch(cur_search_string, show=episode.show)
@@ -251,23 +252,23 @@ class GenericProvider:
             # parse the file name
             try:
                 myParser = NameParser()
-                parse_result = myParser.parse(title, True)
+                parse_result = myParser.parse(title, fix_scene_numbering=True)
             except InvalidNameException:
-                logger.log(u"Unable to parse the filename "+title+" into a valid episode", logger.WARNING)
+                logger.log(u"Unable to parse the filename " + title + " into a valid episode", logger.WARNING)
                 continue
 
             if episode.show.air_by_date:
                 if parse_result.air_date != episode.airdate:
-                    logger.log("Episode "+title+" didn't air on "+str(episode.airdate)+", skipping it", logger.DEBUG)
+                    logger.log(u"Episode " + title + " didn't air on " + str(episode.airdate) + ", skipping it", logger.DEBUG)
                     continue
             elif parse_result.season_number != episode.season or episode.episode not in parse_result.episode_numbers:
-                logger.log("Episode "+title+" isn't "+str(episode.season)+"x"+str(episode.episode)+", skipping it", logger.DEBUG)
+                logger.log(u"Episode " + title + " isn't " + str(episode.season) + "x" + str(episode.episode) + ", skipping it", logger.DEBUG)
                 continue
 
             quality = self.getQuality(item)
 
             if not episode.show.wantEpisode(episode.season, episode.episode, quality, manualSearch):
-                logger.log(u"Ignoring result "+title+" because we don't want an episode that is "+Quality.qualityStrings[quality], logger.DEBUG)
+                logger.log(u"Ignoring result " + title + " because we don't want an episode that is " + Quality.qualityStrings[quality], logger.DEBUG)
                 continue
 
             logger.log(u"Found result " + title + " at " + url, logger.DEBUG)

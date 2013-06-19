@@ -164,6 +164,8 @@ LIBTORRENT_WORKING_DIR = None
 LIBTORRENT_SEED_TO_RATIO = 1.1
 LIBTORRENT_MAX_DL_SPEED = 0
 LIBTORRENT_MAX_UL_SPEED = 0
+LIBTORRENT_PORT_MIN = 6881
+LIBTORRENT_PORT_MAX = 6891
 
 EZRSS = False
 SHOWRSS = False
@@ -355,6 +357,7 @@ def initialize(consoleLogging=True):
                 showUpdateScheduler, __INITIALIZED__, LAUNCH_BROWSER, showList, loadingShowList, \
                 USE_LIBTORRENT, LIBTORRENT_AVAILABLE, LIBTORRENT_WORKING_DIR, LIBTORRENT_SEED_TO_RATIO, \
                 LIBTORRENT_MAX_DL_SPEED, LIBTORRENT_MAX_UL_SPEED, torrentProcessScheduler, PREFER_MAGNETS, \
+                LIBTORRENT_PORT_MIN, LIBTORRENT_PORT_MAX, \
                 SHOWRSS, KAT, DAILYTVTORRENTS, PUBLICHD, \
                 NZBS, NZBS_UID, NZBS_HASH, EZRSS, TVTORRENTS, TVTORRENTS_DIGEST, TVTORRENTS_HASH, BTN, BTN_API_KEY, TORRENTLEECH, TORRENTLEECH_KEY, \
                 TORRENT_DIR, USENET_RETENTION, SOCKET_TIMEOUT, \
@@ -761,6 +764,8 @@ def initialize(consoleLogging=True):
         LIBTORRENT_MAX_UL_SPEED = check_setting_int(CFG, 'Libtorrent', 'max_ul_speed', 0)
         LIBTORRENT_MAX_DL_SPEED = check_setting_int(CFG, 'Libtorrent', 'max_dl_speed', 0)
         LIBTORRENT_SEED_TO_RATIO = check_setting_float(CFG, 'Libtorrent', 'seed_to_ratio', 1.1)
+        LIBTORRENT_PORT_MIN = check_setting_int(CFG, 'Libtorrent', 'port_min', 6881)
+        LIBTORRENT_PORT_MAX = check_setting_int(CFG, 'Libtorrent', 'port_max', 6891)
         PREFER_MAGNETS = USE_LIBTORRENT # very simple for now, we prefer magnets when using libtorrent
 
         # start up all the threads
@@ -1317,6 +1322,8 @@ def save_config():
     new_config['Libtorrent']['working_dir'] = LIBTORRENT_WORKING_DIR
     new_config['Libtorrent']['max_ul_speed'] = int(LIBTORRENT_MAX_UL_SPEED)
     new_config['Libtorrent']['max_dl_speed'] = int(LIBTORRENT_MAX_DL_SPEED)
+    new_config['Libtorrent']['port_min'] = int(LIBTORRENT_PORT_MIN)
+    new_config['Libtorrent']['port_max'] = int(LIBTORRENT_PORT_MAX)
     new_config['Libtorrent']['seed_to_ratio'] = float(LIBTORRENT_SEED_TO_RATIO)
 
     new_config['General']['config_version'] = CONFIG_VERSION

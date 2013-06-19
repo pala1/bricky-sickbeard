@@ -51,7 +51,7 @@ from sickbeard.exceptions import ex
 from sickbeard.webapi import Api
 from sickbeard.scene_exceptions import get_scene_exceptions
 from sickbeard.custom_exceptions import get_custom_exceptions, set_custom_exceptions
-from sickbeard.scene_numbering import get_scene_numbering, set_scene_numbering, get_scene_numbering_for_show
+from sickbeard.scene_numbering import find_scene_numbering, set_scene_numbering, get_scene_numbering_for_show, get_xem_numbering_for_show
 from sickbeard.providers.generic import TorrentProvider
 
 from lib.tvdb_api import tvdb_api
@@ -2571,6 +2571,7 @@ class Home:
         #t.all_scene_exceptions = list(set((get_scene_exceptions(showObj.tvdbid) or []) + (get_custom_exceptions(showObj.tvdbid) or []))) 
         t.all_scene_exceptions = get_scene_exceptions(showObj.tvdbid)
         t.scene_numbering = get_scene_numbering_for_show(showObj.tvdbid)
+        t.xem_numbering = get_xem_numbering_for_show(showObj.tvdbid)
         
         #logger.log(u'Home.displayShow with t = ' + pprint.pformat(vars(t)) , logger.DEBUG)
 
@@ -3003,8 +3004,8 @@ class Home:
     def setEpisodeSceneNumbering(self, show, forSeason, forEpisode, sceneSeason=None, sceneEpisode=None):
 
         # sanitize:
-        if sceneSeason is 'null': sceneSeason = None
-        if sceneEpisode is 'null': sceneEpisode = None
+        if sceneSeason in ['null', '']: sceneSeason = None
+        if sceneEpisode in ['null', '']: sceneEpisode = None
         
         result = { 
             'success': True,
@@ -3017,10 +3018,6 @@ class Home:
         if isinstance(ep_obj, str):
             result['success'] = False
             result['errorMessage'] = ep_obj
-            
-            # since we failed, we set whatever value they tried to set back to 'blank'
-            if sceneSeason is not None: result['sceneSeason'] = ''
-            if sceneEpisode is not None: result['sceneEpisode'] = ''
         else:
             logger.log(u"setEpisodeSceneNumbering for %s from %sx%s to %sx%s" % 
                        (show, forSeason, forEpisode, sceneSeason, sceneEpisode), logger.DEBUG)
@@ -3032,6 +3029,12 @@ class Home:
             if sceneEpisode is not None: sceneEpisode = int(sceneEpisode)
             
             set_scene_numbering(show, forSeason, forEpisode, sceneSeason, sceneEpisode)
+            
+        sn = find_scene_numbering(show, forSeason, forEpisode)
+        if sn:
+            (result['sceneSeason'], result['sceneEpisode']) = sn
+        else:
+            (result['sceneSeason'], result['sceneEpisode']) = (None, None)
 
         return json.dumps(result)
 

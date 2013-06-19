@@ -247,23 +247,25 @@ def _get_session(createIfNeeded=True):
         settings.active_seeds = 12
         settings.active_limit = 20
         
-        _lt_sess.listen_on(6881, 6891)
+        _lt_sess.listen_on(sickbeard.LIBTORRENT_PORT_MIN, sickbeard.LIBTORRENT_PORT_MAX)
         _lt_sess.set_settings(settings)
         _lt_sess.set_alert_mask(lt.alert.category_t.error_notification |
                                 #lt.alert.category_t.port_mapping_notification |
                                 lt.alert.category_t.storage_notification |
                                 #lt.alert.category_t.tracker_notification |
                                 lt.alert.category_t.status_notification |
-                                lt.alert.category_t.performance_warning)
+                                #lt.alert.category_t.port_mapping_notification |
+                                lt.alert.category_t.performance_warning
+                                )
         try:
             state = {} # @todo: save/restore this
             _lt_sess.start_dht(state)
             _lt_sess.add_dht_router('router.bittorrent.com', 6881)
             _lt_sess.add_dht_router('router.utorrent.com', 6881)
             _lt_sess.add_dht_router('router.bitcomet.com', 6881)
-        except Exception:
+        except Exception, ex:
             # just ignore any dht errors, this is just for bootstrapping
-            pass
+            logger.log(u'Exception starting dht: ' + str(ex), logger.WARNING)
         
     return _lt_sess
 

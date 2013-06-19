@@ -161,25 +161,29 @@ Change selected episodes to
     <td align="center">$epResult["episode"]</td>
     <td align="center">
 		#if int($show.air_by_date) != 1
+			#if (epResult["season"], epResult["episode"]) in $xem_numbering:
+				#set ($dfltSeas, $dfltEpis) = $xem_numbering[(epResult["season"], epResult["episode"])]
+			#else
+				#set ($dfltSeas, $dfltEpis) = (epResult["season"], epResult["episode"])
+			#end if
 			#if (epResult["season"], epResult["episode"]) in $scene_numbering:
 				#set ($scSeas, $scEpis) = $scene_numbering[(epResult["season"], epResult["episode"])]
+				#set $dfltEpNumbering = False
 			#else
-				#set ($scSeas, $scEpis) = (epResult["season"], epResult["episode"]) 
+				#set ($scSeas, $scEpis) = ($dfltSeas, $dfltEpis)
+				#set $dfltEpNumbering = True
 			#end if
-			<nobr>
-	    	<input type="text" placeholder="$epResult["season"]" size="2" maxlength="3"
-	    		class="sceneSeason" data-for-season="$epResult["season"]" data-for-episode="$epResult["episode"]"
-	    		id="sceneSeason_$show.tvdbid<%="_"+str(epResult["season"])+"_"+str(epResult["episode"])%>"
+	    	<input type="text" placeholder="<%=str(dfltSeas) + 'x' + str(dfltEpis)%>" size="6" maxlength="8"
+	    		class="sceneSeasonXEpisode" data-for-season="$epResult["season"]" data-for-episode="$epResult["episode"]"
+	    		id="sceneSeasonXEpisode_$show.tvdbid<%="_"+str(epResult["season"])+"_"+str(epResult["episode"])%>"
 	    		title="Change the value here if scene numbering differs from tvdb episode numbering"
-	    		value="$scSeas"
-	    		style="padding: 0; text-align: right; max-width: 20px;" 
-	    	/>x<input type="text" placeholder="$epResult["episode"]" size="2" maxlength="3"
-	    		class="sceneEpisode" data-for-season="$epResult["season"]" data-for-episode="$epResult["episode"]"
-	    		id="sceneEpisode_$show.tvdbid<%="_"+str(epResult["season"])+"_"+str(epResult["episode"])%>"
-	    		title="Change the value here if scene numbering differs from tvdb episode numbering"
-	    		value="$scEpis"
-	    		style="padding: 0; text-align: left; max-width: 20px;" />
-	    	</nobr>
+	    		#if $dfltEpNumbering:
+	    			value=""
+	    		#else
+	    			value="<%=str(scSeas) + 'x' + str(scEpis)%>"
+	    		#end if
+	    		style="padding: 0; text-align: center; max-width: 60px;" 
+	    	/>
     	#else
     		N/A
     	#end if
