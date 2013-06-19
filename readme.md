@@ -10,12 +10,13 @@ Specifically it includes
 * Support for iPlayer downloads (via the [get_iplayer perl script](http://www.infradead.org/get_iplayer/html/get_iplayer.html)). [See here for how to set this up](http://brickybox.com/2013/03/05/sickbeard-iplayer-requirements).
 * A UI for adding custom (local) scene exception names.
 * Use of twitter, tpb, and feedburner rss feeds as fallbacks when ezrss fails.
-* Support for the [Kickass Torrents](http://kat.ph/) torrent site (including backlog).  Searches verified torrents only.
+* Support for the [Kickass Torrents](http://kickass.to/) torrent site (including backlog).  Searches verified torrents only.
 * Support for scene numbering at the episode level.  If scene numbering does not agree with tvdb numbering (as is often the case) the show will still be downloaded and saved correctly.
 * Support for magnet links.
 
 Requires Python 2.5, 2.6, or 2.7.
 
+[Installation Instructions](https://github.com/bricky/Sick-Beard/wiki/How-To-Install-Sickbeard-for-Torrents)
 
 See [here](http://brickybox.com/2012/09/24/sickbeard-fork-feature-summary) for some further info.  
 
