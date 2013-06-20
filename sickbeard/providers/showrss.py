@@ -37,7 +37,7 @@ except ImportError:
 
 UPDATE_INTERVAL = 432000 # 5 days
 ATTEMPT_EXCEPTIONS_IF_NOT_KNOWN = True
-SHOW_LOOKUP_URL = 'http://show-api.buckley.ie/api/show'
+SHOW_LOOKUP_URL = 'http://show-api.tvtumbler.com/api/show'
 
 class ShowRssProvider(generic.TorrentProvider):
     

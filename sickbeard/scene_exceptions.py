@@ -94,7 +94,7 @@ def retrieve_exceptions():
     exception_dict = {}
 
     # Moved the exceptions onto our show-api server (to allow for future source merging)
-    url = 'http://show-api.buckley.ie/api/exceptions'
+    url = 'http://show-api.tvtumbler.com/api/exceptions'
 
     logger.log(u"Check scene exceptions update")
     url_data = helpers.getURL(url)
