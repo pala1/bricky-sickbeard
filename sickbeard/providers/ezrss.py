@@ -44,9 +44,10 @@ class EZRSSProvider(generic.TorrentProvider):
         
         # These are backup feeds, tried in order if the main feed fails.
         # (these just provide "latest", no backlog)
-        self.backup_feeds = ['https://rss.thepiratebay.se/user/d17c6a45441ce0bc0c057f19057f95e1',
-                             #'http://search.twitter.com/search.rss?rpp=30&q=from%3Aeztv_it',
-                             'http://feeds.feedburner.com/eztv-rss-atom-feeds?format=xml&max-results=30' ]
+        self.backup_feeds = ['https://rss.thepiratebay.sx/user/d17c6a45441ce0bc0c057f19057f95e1',
+                             'http://feeds.feedburner.com/eztv-rss-atom-feeds?format=xml&max-results=30',
+                             'http://show-api.buckley.ie/api/ezrss-mirror',
+                            ]
 
     def isEnabled(self):
         return sickbeard.EZRSS
@@ -151,47 +152,23 @@ class EZRSSProvider(generic.TorrentProvider):
     def _get_title_and_url(self, item):
         (title, url) = generic.TorrentProvider._get_title_and_url(self, item)
         
-        if url and url.startswith(('http://twitter.com/', 'https://twitter.com/')):
-            # this feed came from twitter
-            #
-            # we need to extract the filename and url from the twitter message (the url we have currently is just that of the twitter message,
-            # which is of little use to us).
-            # The message looks something like this:
-            # eztv_it: History Ch The Universe Season 4 08of12 Space Wars XviD AC3 [MVGroup org] - http://t.co/mGTrhB4a
-            #
-            # Start by splitting the (real) url from the filename
-            try:
-                title, url = title.rsplit(' - http', 1)
-                url = 'http' + url
-            except ValueError:
-                logger.log(u"Twitter message '%s' could not be split on a http boundary, there'll be no url here, sorry" % (title), logger.MESSAGE)
-                url = None
-            
-            # Then strip off the leading eztv_it:
-            if title.startswith('eztv_it:'):
-                title = title[8:]
-                
-            # For safety we remove any whitespace too.
-            title = title.strip()
-            
-            logger.log(u"Extracted the title '%s' and url '%s' from the twitter link"%(title, url), logger.DEBUG)
-        else:
-            # this feed came from ezrss
-            try:
-                torrent_node = item.getElementsByTagName('torrent')[0]
-                filename_node = torrent_node.getElementsByTagName('fileName')[0]
-                filename = get_xml_text(filename_node)
-            
-                new_title = self._extract_name_from_filename(filename)
-                if new_title:
-                    title = new_title
-                    logger.log(u"Extracted the name "+title+" from the torrent link", logger.DEBUG)
-            except IndexError:
-                # we'll get an IndexError above when there's no 'torrent' node,
-                # which likely means that this isn't in the special ezrss format.
-                # So assume we're working with with a standard rss feed.
-                logger.log(u"IndexError while parsing the ezrss feed, maybe it's just standard RSS? Trying that ...", logger.DEBUG)
-                (title, url) = generic.TorrentProvider._get_title_and_url(self, item)
+        
+        try:
+            # ezrss feed will have a 'torrent' node
+            torrent_node = item.getElementsByTagName('torrent')[0]
+            filename_node = torrent_node.getElementsByTagName('fileName')[0]
+            filename = get_xml_text(filename_node)
+        
+            new_title = self._extract_name_from_filename(filename)
+            if new_title:
+                title = new_title
+                logger.log(u"Extracted the name "+title+" from the torrent link", logger.DEBUG)
+        except IndexError:
+            # we'll get an IndexError above when there's no 'torrent' node,
+            # which likely means that this isn't in the special ezrss format.
+            # So assume we're working with with a standard rss feed.
+            logger.log(u"IndexError while parsing the ezrss feed, maybe it's just standard RSS? Trying that ...", logger.DEBUG)
+            (title, url) = generic.TorrentProvider._get_title_and_url(self, item)
                 
         # feedburner adds "[eztv] " to the start of all titles, so trim it off
         if title and title[:7] == "[eztv] ":

@@ -579,7 +579,7 @@ class TorrentProvider(GenericProvider):
     def _get_title_and_url(self, item):
         """
         Retrieves the title and URL data from the item XML node.
-        Overridden here so that we have have a preference for magnets.
+        Overridden here so that we can have a preference for magnets.
         
         item: An xml.dom.minidom.Node representing the <item> tag of the RSS feed
         Returns: A tuple containing two strings representing title and URL respectively
