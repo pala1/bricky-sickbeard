@@ -200,6 +200,7 @@ WOMBLE = False
 
 IPLAYER = False
 IPLAYER_GETIPLAYER_PATH = None
+IPLAYER_EXTRA_PARAMS = None
 
 NZBX = False
 NZBX_COMPLETION = 100
@@ -346,7 +347,7 @@ def initialize(consoleLogging=True):
 
         global LOG_DIR, WEB_PORT, WEB_LOG, WEB_ROOT, WEB_USERNAME, WEB_PASSWORD, WEB_HOST, WEB_IPV6, USE_API, API_KEY, ENABLE_HTTPS, HTTPS_CERT, HTTPS_KEY, \
                 USE_NZBS, USE_TORRENTS, NZB_METHOD, NZB_DIR, DOWNLOAD_PROPERS, \
-                USE_VODS, IPLAYER, IPLAYER_GETIPLAYER_PATH, \
+                USE_VODS, IPLAYER, IPLAYER_GETIPLAYER_PATH, IPLAYER_EXTRA_PARAMS, \
                 SAB_USERNAME, SAB_PASSWORD, SAB_APIKEY, SAB_CATEGORY, SAB_HOST, \
                 NZBGET_PASSWORD, NZBGET_CATEGORY, NZBGET_HOST, currentSearchScheduler, backlogSearchScheduler, \
                 USE_XBMC, XBMC_NOTIFY_ONSNATCH, XBMC_NOTIFY_ONDOWNLOAD, XBMC_UPDATE_FULL, XBMC_UPDATE_ONLYFIRST, \
@@ -625,7 +626,8 @@ def initialize(consoleLogging=True):
         
         CheckSection(CFG, 'Iplayer')
         IPLAYER = bool(check_setting_int(CFG, 'Iplayer', 'Iplayer', 0))
-        IPLAYER_GETIPLAYER_PATH = check_setting_int(CFG, 'Iplayer', 'get_iplayer_path', '')
+        IPLAYER_GETIPLAYER_PATH = check_setting_str(CFG, 'Iplayer', 'get_iplayer_path', '')
+        IPLAYER_EXTRA_PARAMS = check_setting_str(CFG, 'Iplayer', 'get_iplayer_extra_params', '')
 
         CheckSection(CFG, 'nzbX')
         NZBX = bool(check_setting_int(CFG, 'nzbX', 'nzbx', 0))
@@ -1177,9 +1179,11 @@ def save_config():
 
     new_config['Womble'] = {}
     new_config['Womble']['womble'] = int(WOMBLE)
-    
+
     new_config['Iplayer'] = {}
     new_config['Iplayer']['Iplayer'] = int(IPLAYER)
+    new_config['Iplayer']['get_iplayer_path'] = IPLAYER_GETIPLAYER_PATH
+    new_config['Iplayer']['get_iplayer_extra_params'] = IPLAYER_EXTRA_PARAMS
 
     new_config['nzbX'] = {}
     new_config['nzbX']['nzbx'] = int(NZBX)

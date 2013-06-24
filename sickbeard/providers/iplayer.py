@@ -225,6 +225,9 @@ class Iplayer:
         if with_metadata:
             cmd.append('--metadata=xbmc')
             
+        if sickbeard.IPLAYER_EXTRA_PARAMS:
+            cmd.append(sickbeard.IPLAYER_EXTRA_PARAMS)
+            
         cmd = " ".join(cmd) 
             
         logger.log(u"get_iplayer (cmd) = "+repr(cmd), logger.DEBUG)
@@ -239,10 +242,9 @@ class Iplayer:
         
         while p.poll() is None:
             line = p.stdout.readline()
-            if line:
+            while line:
                 line = line.rstrip()
-                logger.log(u"RUNNING iPLAYER: "+line, logger.DEBUG)
-                
+                logger.log(u"RUNNING iPLAYER: " + line, logger.DEBUG)
                 
                 # download progress lines look like:
                 # 1114354.601 kB / 3545.09 sec (99.9%)
@@ -259,6 +261,8 @@ class Iplayer:
                     
                     return True
                 
+                line = p.stdout.readline()
+                
             if time.time() - start_time > IPLAYER_SNATCH_TIMEOUT_SECS:
                 # Timeout!
                 logger.log(u"RUNNING iPLAYER: process timeout after %d secs, killing"%IPLAYER_SNATCH_TIMEOUT_SECS, 
@@ -272,6 +276,9 @@ class Iplayer:
         # process has ended - must be an error
         logger.log(u"RUNNING iPLAYER: process has ended too soon (failure), returncode was " + 
                    repr(p.returncode) , logger.WARNING)
+        lines = p.stdout.read()
+        if lines:
+            logger.log(u"RUNNING iPLAYER: last data was: " + lines, logger.WARNING)
         return False
 
     
@@ -298,6 +305,9 @@ class Iplayer:
                 '--refresh',   # Refresh cache
                 '--since 24', # only shows added in the last 24 hours
                 ]
+        
+        if sickbeard.IPLAYER_EXTRA_PARAMS:
+            cmd.append(sickbeard.IPLAYER_EXTRA_PARAMS)
         
         cmd = " ".join(cmd) # not quite sure why, but Popen doesn't like the list
         
@@ -356,6 +366,9 @@ class Iplayer:
                 '--nocopyright', 
                 '"' + showName + '"',
                 ]
+        
+        if sickbeard.IPLAYER_EXTRA_PARAMS:
+            cmd.append(sickbeard.IPLAYER_EXTRA_PARAMS)
         
         cmd = " ".join(cmd) # not quite sure why, but Popen doesn't like the list
         
