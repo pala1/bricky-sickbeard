@@ -15,7 +15,9 @@
         #set $numEpisodes = $myDB.select("SELECT COUNT(*) FROM tv_episodes WHERE season != 0 and episode != 0 AND (airdate != 1 OR status IN ("+",".join([str(x) for x in ($Quality.DOWNLOADED + $Quality.SNATCHED + $Quality.SNATCHED_PROPER) + [$ARCHIVED]]) + ")) AND airdate <= " + $today + " AND status != " + str($IGNORED) + "")[0][0]
         <b>$numShows shows</b> ($numGoodShows active) | <b>$numDLEpisodes/$numEpisodes</b> episodes downloaded 
         <br />
-        <b>Search</b>: <%=str(sickbeard.currentSearchScheduler.timeLeft()).split('.')[0]%> |
+        <b>Search</b>: <a href="$sbRoot/manage/manageSearches/forceSearch"
+        				  title="Click here to run Daily Episode Search"><%=
+        				  	str(sickbeard.currentSearchScheduler.timeLeft() if sickbeard.currentSearchScheduler.timeLeft().total_seconds() > 0 else 'Queued').split('.')[0]%></a> |
         <b>Backlog</b>: $sickbeard.backlogSearchScheduler.nextRun().strftime("%a %b %d").decode($sickbeard.SYS_ENCODING)
     </div> <!-- /container footer -->
 </footer>

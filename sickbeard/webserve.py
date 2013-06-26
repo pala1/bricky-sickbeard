@@ -97,7 +97,7 @@ class PageTemplate (Template):
             
         downloadPageTitle = u'Downloads'
         if sickbeard.USE_LIBTORRENT and len(downloader.running_torrents):
-            downloadPageTitle += ' ({0})'.format(len(downloader.running_torrents))
+            downloadPageTitle += ' (%d)' % (len(downloader.running_torrents), )
         self.downloadPageTitle = downloadPageTitle
 
         logPageTitle = 'Logs &amp; Errors'
@@ -816,7 +816,7 @@ class ConfigSearch:
                 logger.log(u'You have set your seed ratio to 0.  This makes you all take, with no give.  ' + \
                     u'Please feel appropriately guilty for a moment, and do something nice for someone to make up for it.', logger.MESSAGE)
         except Exception, e:
-            msg = u'Unable to make a float from "{0}", setting seed_to_ratio to 1.1'.format(seed_to_ratio)
+            msg = u'Unable to make a float from "%s", setting seed_to_ratio to 1.1' % (seed_to_ratio,)
             logger.log(msg + ': ' + ex(e), logger.ERROR)
             results += [msg]
             seed_to_ratio = 1.1
@@ -826,7 +826,7 @@ class ConfigSearch:
             if max_dl_speed < 0: 
                 max_dl_speed = 0
         except Exception, e:
-            msg = u'Unable to make an int from "{0}", setting max_dl_speed to 0 (auto)'.format(max_dl_speed)
+            msg = u'Unable to make an int from "%s", setting max_dl_speed to 0 (auto)' % (max_dl_speed,)
             logger.log(msg + u': ' + ex(e), logger.ERROR)
             results += [msg]
             max_dl_speed = 0
@@ -839,7 +839,7 @@ class ConfigSearch:
             if max_ul_speed < 0: 
                 max_ul_speed = 0
         except Exception, e:
-            msg = u'Unable to make an int from "{0}", setting max_ul_speed to 0 (auto)'.format(max_ul_speed)
+            msg = u'Unable to make an int from "%s", setting max_ul_speed to 0 (auto)' % (max_ul_speed)
             logger.log(msg + u': ' + ex(e), logger.ERROR)
             results += [msg]
             max_ul_speed = 0
@@ -2197,7 +2197,7 @@ class Downloads:
             if url.startswith('http://') or url.startswith('https://'):
                 torrent = helpers.getURL(url)
                 if not TorrentProvider.is_valid_torrent_data(torrent):
-                    result['errorMessage'] = u'The torrent retrieved from "{0}" is not a valid torrent file.'.format(url)
+                    result['errorMessage'] = u'The torrent retrieved from "%s" is not a valid torrent file.' % (url,)
                     result['success'] = False
                     torrent = None
             elif url.startswith('magnet:'):

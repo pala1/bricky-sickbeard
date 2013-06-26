@@ -166,7 +166,7 @@ class Iplayer:
                 newFileName = newFilePrefix + '.' + fileExt
                 
                 if newFileName != videoFile:    # just in case!
-                    logger.log('Renaming {0} to {1}'.format(videoFile, newFileName), logger.DEBUG)
+                    logger.log('Renaming %s to %s' % (videoFile, newFileName), logger.DEBUG)
                     os.rename(videoFile, newFileName)
                     
                     # Also need to rename any associated files (nfo and srt)
@@ -175,7 +175,7 @@ class Iplayer:
                             continue
                         otherFilePrefix, otherFileExt = os.path.splitext(otherFile)
                         newOtherFile = newFilePrefix + otherFileExt
-                        logger.log('Renaming {0} to {1}'.format(otherFile, newOtherFile), logger.DEBUG)
+                        logger.log('Renaming %s to %s' % (otherFile, newOtherFile), logger.DEBUG)
                         os.rename(otherFile, newOtherFile)
                     
             

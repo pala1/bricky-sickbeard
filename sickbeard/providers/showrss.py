@@ -136,7 +136,7 @@ class ShowRssProvider(generic.TorrentProvider):
                 continue
             
             if self.urlIsBlacklisted(url):
-                logger.log(u'Ignoring result with url {0} as it has been blacklisted'.format(url), logger.DEBUG)
+                logger.log(u'Ignoring result with url %s as it has been blacklisted' % (url), logger.DEBUG)
                 continue
     
             results.append(curItem)

@@ -966,7 +966,7 @@ def halt():
                 pass
             
             torrentProcessScheduler.abort = True
-            logger.log(u"Waiting for the {0} thread to exit".format(torrentProcessScheduler.threadName))
+            logger.log(u"Waiting for the %s thread to exit" % (torrentProcessScheduler.threadName))
             try:
                 # we give this thread a full 60 seconds to end, because it may
                 # have running torrents that need to be tidied-up

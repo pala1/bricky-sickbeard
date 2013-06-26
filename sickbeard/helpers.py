@@ -137,7 +137,7 @@ def getURL(url, headers=[], timeout=None):
         opener.addheaders.append(cur_header)
 
     try:
-        if sys.version_info <= (2, 5) or timeout is None:
+        if sys.version_info < (2, 6) or timeout is None:
             usock = opener.open(url)
         else:
             usock = opener.open(url, timeout=timeout)

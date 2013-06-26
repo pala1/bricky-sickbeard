@@ -96,7 +96,7 @@ def download_from_torrent(torrent, filename=None, postProcessingDone=False, star
         logger.log(u'Error in initial parse of torrent ' + ex(ea), logger.ERROR)
         return False
     
-    #logger.log(u'episodes: {0}'.format(repr(episodes)), logger.DEBUG)
+    #logger.log(u'episodes: %s' % (repr(episodes)), logger.DEBUG)
     
     try:
         sess = _get_session()
@@ -108,7 +108,7 @@ def download_from_torrent(torrent, filename=None, postProcessingDone=False, star
         atp["duplicate_is_error"] = True
         have_torrentFile = False
         if torrent.startswith('magnet:') or torrent.startswith('http://') or torrent.startswith('https://'):
-            logger.log(u'Adding torrent to session: {0}'.format(torrent), logger.DEBUG)
+            logger.log(u'Adding torrent to session: %s' % (torrent), logger.DEBUG)
             atp["url"] = torrent
             name_to_use = filename
             total_size_to_use = -1
@@ -117,7 +117,7 @@ def download_from_torrent(torrent, filename=None, postProcessingDone=False, star
             info = lt.torrent_info(e)
             name_to_use = info.name()
             total_size_to_use = info.total_size()
-            logger.log(u'Adding torrent to session: {0}'.format(name_to_use), logger.DEBUG)
+            logger.log(u'Adding torrent to session: %s' % (name_to_use), logger.DEBUG)
             have_torrentFile = True
                 
             try:
@@ -171,7 +171,7 @@ def download_from_torrent(torrent, filename=None, postProcessingDone=False, star
                                lt.torrent_status.downloading,
                                lt.torrent_status.finished, 
                                lt.torrent_status.downloading_metadata]:
-                    logger.log(u'Torrent "{0}" has state "{1}" ({2}), interpreting as snatched'.format(name, s.state, repr(s.state)), 
+                    logger.log(u'Torrent "%s" has state "%s" (%s), interpreting as snatched' % (name, s.state, repr(s.state)), 
                                logger.MESSAGE)
                     return True
             elif s.state is lt.torrent_status.downloading_metadata and torrent.startswith('magnet:'):
@@ -185,7 +185,7 @@ def download_from_torrent(torrent, filename=None, postProcessingDone=False, star
             
             # check for timeout
             if time.time() - start_time > TORRENT_START_WAIT_TIMEOUT_SECS:
-                logger.log(u'Torrent has failed to start within timeout {0}secs.  Removing'.format(TORRENT_START_WAIT_TIMEOUT_SECS),
+                logger.log(u'Torrent has failed to start within timeout %d secs.  Removing' % (TORRENT_START_WAIT_TIMEOUT_SECS),
                            logger.WARNING)
                 _remove_torrent_by_handle(h)
                 return False
@@ -240,7 +240,7 @@ def _get_session(createIfNeeded=True):
         _lt_sess.set_upload_rate_limit(sickbeard.LIBTORRENT_MAX_UL_SPEED * 1024)
         
         settings = lt.session_settings()
-        settings.user_agent = 'sickbeard_bricky-{0}/{1}'.format(version.SICKBEARD_VERSION.replace(' ', '-'), lt.version)
+        settings.user_agent = 'sickbeard_bricky-%s/%s' % (version.SICKBEARD_VERSION.replace(' ', '-'), lt.version)
         settings.rate_limit_utp = True # seems this is rqd, otherwise uTP connections don't obey the rate limit
         
         settings.active_downloads = 8
@@ -349,7 +349,7 @@ def _load_saved_torrents(deleteSaveFile=True):
                                       key=td['key'],
                                       episodes=tvEpObjs)
         except Exception, e:
-            logger.log(u'Failure while reloading running torrents: {0}'.format(ex(e)), logger.ERROR)
+            logger.log(u'Failure while reloading running torrents: %s' % (ex(e)), logger.ERROR)
         if deleteSaveFile:
             os.remove(torrent_save_file)
     
@@ -374,7 +374,7 @@ def _save_running_torrents():
             })
             #logger.log(repr(data_to_pickle), logger.DEBUG)
         torrent_save_file = _get_running_torrents_pickle_path(True)
-        logger.log(u'Saving running torrents to "{0}"'.format(torrent_save_file), logger.DEBUG)
+        logger.log(u'Saving running torrents to "%s"' % (torrent_save_file), logger.DEBUG)
         pickle.dump(data_to_pickle, open(torrent_save_file, "wb"))
 
 
@@ -396,7 +396,7 @@ class TorrentProcessHandler():
         if not self.loadedRunningTorrents:
             torrent_save_file = _get_running_torrents_pickle_path(False)
             if os.path.isfile(torrent_save_file):
-                logger.log(u'Saved torrents found in {0}, loading'.format(torrent_save_file), logger.DEBUG)
+                logger.log(u'Saved torrents found in %s, loading' % (torrent_save_file), logger.DEBUG)
                 _load_saved_torrents()
             
             self.loadedRunningTorrents = True    
@@ -408,9 +408,9 @@ class TorrentProcessHandler():
                 if not a: break
                 
                 if type(a) == str:
-                    logger.log(u'{0}'.format(a), logger.DEBUG)
+                    logger.log(a, logger.DEBUG)
                 else:
-                    logger.log(u'({0}): {1}'.format(type(a).__name__, a.message()), logger.DEBUG)
+                    logger.log(u'(%s): %s' % (type(a).__name__, a.message()), logger.DEBUG)
                     
             logTorrentStatus = (time.time() - self.lastTorrentStatusLogTS) >= 600
                 
@@ -428,7 +428,7 @@ class TorrentProcessHandler():
                         torrentFile = lt.create_torrent(ti)
                         torrent_data['torrent'] = lt.bencode(torrentFile.generate())
                         torrent_data['have_torrentFile'] = True
-                        logger.log(u'Created torrent file for {0} as metadata d/l is now complete'.format(name), logger.DEBUG)
+                        logger.log(u'Created torrent file for %s as metadata d/l is now complete' % (name), logger.DEBUG)
 
                 else:
                     name = '-'
@@ -458,20 +458,20 @@ class TorrentProcessHandler():
                             any_file_success = False
                             for f in ti.files():
                                 fullpath = os.path.join(sickbeard.LIBTORRENT_WORKING_DIR, 'data', f.path)
-                                logger.log(u'Post-processing "{0}"'.format(fullpath), logger.DEBUG)
+                                logger.log(u'Post-processing "%s"' % (fullpath), logger.DEBUG)
                                 if isMediaFile(fullpath):
                                     logger.log(u'this is a media file', logger.DEBUG)
                                     try:
                                         processor = postProcessor.PostProcessor(fullpath, name)
                                         if processor.process(forceKeepOriginalFiles=True):
-                                            logger.log(u'Success post-processing "{0}"'.format(fullpath), logger.DEBUG)
+                                            logger.log(u'Success post-processing "%s"' % (fullpath), logger.DEBUG)
                                             any_file_success = True
                                     except exceptions.PostProcessingFailed, e:
-                                        logger.log(u'Failed post-processing file "{0}" with error "{1}"'.format(fullpath, ex(e)), 
+                                        logger.log(u'Failed post-processing file "%s" with error "%s"' % (fullpath, ex(e)), 
                                                    logger.ERROR)
                                         
                             if not any_file_success:
-                                logger.log(u'When post-processing the completed torrent {0}, no useful files were found.'.format(name), logger.ERROR)
+                                logger.log(u'When post-processing the completed torrent %s, no useful files were found.' % (name), logger.ERROR)
                                 
                             torrent_data['post_processed'] = True
                         else:
@@ -479,7 +479,7 @@ class TorrentProcessHandler():
                             # need to ensure check the ratio and delete the torrent
                             # if we're good.
                             if currentRatio >= sickbeard.LIBTORRENT_SEED_TO_RATIO:
-                                logger.log(u'Torrent "{0}" has seeded to ratio {1}.  Removing it.'.format(name, currentRatio), logger.MESSAGE)
+                                logger.log(u'Torrent "%s" has seeded to ratio %f.  Removing it.' % (name, currentRatio), logger.MESSAGE)
                                 deleteFilesToo = True
                                 if not torrent_data['post_processed']:
                                     logger.log(u'Torrent has not been post_processed.  Keeping files.', logger.MESSAGE)
@@ -488,11 +488,11 @@ class TorrentProcessHandler():
                             else:
                                 if logTorrentStatus:
                                     self.lastTorrentStatusLogTS = time.time()
-                                    logger.log(u'"{0}" seeding {1:.3f}'.format(name, currentRatio), logger.DEBUG)
+                                    logger.log(u'"%s" seeding %0.3f' % (name, currentRatio), logger.DEBUG)
                 elif s.state == lt.torrent_status.downloading:
                     if logTorrentStatus:
                         self.lastTorrentStatusLogTS = time.time()
-                        logger.log(u'"{0}" downloading {1:.2f}%'.format(name, s.progress * 100.0), logger.DEBUG)
+                        logger.log(u'"%s" downloading %0.2f' % (name, s.progress * 100.0), logger.DEBUG)
                         
             if self.shutDownImmediate:
                 # there's an immediate shutdown waiting to happen, save any running torrents
@@ -506,7 +506,7 @@ class TorrentProcessHandler():
                     data = lt.bencode(torrent_data['handle'].write_resume_data())
                     save_path = _get_save_path(True)
                     tname = h.get_torrent_info().name()
-                    logger.log(u'Saving fastresume data for "{0}"'.format(tname), logger.DEBUG)
+                    logger.log(u'Saving fastresume data for "%s"' % (tname), logger.DEBUG)
                     open(os.path.join(save_path, tname + '.fastresume'), 'wb').write(data)
                 
                 _save_running_torrents()

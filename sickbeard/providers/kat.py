@@ -267,7 +267,7 @@ class KATProvider(generic.TorrentProvider):
                 continue
             
             if self.urlIsBlacklisted(url):
-                logger.log(u'URL "{0}" for "{1}" is blacklisted, ignoring.'.format(url, title), logger.DEBUG)
+                logger.log(u'URL "%s" for "%s" is blacklisted, ignoring.' % (url, title), logger.DEBUG)
                 continue
 
             results.append(curItem)

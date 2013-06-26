@@ -177,7 +177,7 @@ class AnyRssCache(tvcache.TVCache):
             return
         
         if url and self.provider.urlIsBlacklisted(url):
-            logger.log(u'The url "{0}" for "{1}" is blacklisted, ignoring'.format(url, title), logger.DEBUG)
+            logger.log(u'The url "%s" for "%s" is blacklisted, ignoring' % (url, title), logger.DEBUG)
             return
 
         logger.log(u"Adding item from RSS to cache: " + title, logger.DEBUG)

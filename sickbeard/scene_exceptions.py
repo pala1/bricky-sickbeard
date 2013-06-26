@@ -119,14 +119,14 @@ def retrieve_exceptions():
             for cur_exception in exception_dict[cur_tvdb_id]:
                 # if this exception isn't already in the DB then add it
                 if cur_exception not in existing_exceptions:
-                    logger.log(u'Adding exception {0}: {1}'.format(cur_tvdb_id, cur_exception), logger.DEBUG)
+                    logger.log(u'Adding exception %s: %s' % (cur_tvdb_id, cur_exception), logger.DEBUG)
                     myDB.action("INSERT INTO scene_exceptions (tvdb_id, show_name) VALUES (?,?)", [cur_tvdb_id, cur_exception])
                     changed_exceptions = True
                     
             # check for any exceptions which have been deleted
             for cur_exception in existing_exceptions:
                 if cur_exception not in exception_dict[cur_tvdb_id]:
-                    logger.log(u'Removing exception {0}: {1}'.format(cur_tvdb_id, cur_exception), logger.DEBUG)
+                    logger.log(u'Removing exception %s: %s' % (cur_tvdb_id, cur_exception), logger.DEBUG)
                     myDB.action("DELETE FROM scene_exceptions WHERE tvdb_id = ? AND show_name = ?", [cur_tvdb_id, cur_exception])
                     changed_exceptions = True
 

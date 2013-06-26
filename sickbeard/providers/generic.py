@@ -222,8 +222,8 @@ class GenericProvider:
         episode_scene = copy.copy(episode)
         episode_scene.convertToSceneNumbering()
 
-        logger.log(u'Searching "{0}" for "{1}" as "{2}"'
-                   .format(self.name, episode.prettyName() , episode_scene.prettyName()))
+        logger.log(u'Searching "%s" for "%s" as "%s"'
+                   % (self.name, episode.prettyName() , episode_scene.prettyName()))
 
         self.cache.updateCache()
         results = self.cache.searchCache(episode_scene, manualSearch)
@@ -246,7 +246,7 @@ class GenericProvider:
             (title, url) = self._get_title_and_url(item)
             
             if self.urlIsBlacklisted(url):
-                logger.log(u'Ignoring {0} as the url {1} is blacklisted'.format(title, url), logger.DEBUG)
+                logger.log(u'Ignoring %s as the url %s is blacklisted' % (title, url), logger.DEBUG)
                 continue
 
             # parse the file name
@@ -297,7 +297,7 @@ class GenericProvider:
             (title, url) = self._get_title_and_url(item)
             
             if self.urlIsBlacklisted(url):
-                logger.log(u'Ignoring {0} as the url {1} is blacklisted'.format(title, url), logger.DEBUG)
+                logger.log(u'Ignoring %s as the url %s is blacklisted' % (title, url), logger.DEBUG)
                 continue
 
             quality = self.getQuality(item)
@@ -519,7 +519,7 @@ class TorrentProvider(GenericProvider):
                 torrent = self.getURL(result.url)
                 # and now that we have it, we can check the torrent file too!
                 if not self.is_valid_torrent_data(torrent):
-                    logger.log(u'The torrent retrieved from "{0}" is not a valid torrent file.'.format(result.url), logger.ERROR)
+                    logger.log(u'The torrent retrieved from "%s" is not a valid torrent file.' % (result.url), logger.ERROR)
                     self.blacklistUrl(result.url)
                     return False
             else:
@@ -528,7 +528,7 @@ class TorrentProvider(GenericProvider):
             if torrent:
                 return downloader.download_from_torrent(torrent=torrent, filename=result.name, episodes=result.episodes)
             else:
-                logger.log(u'Failed to retrieve torrent from "{0}"'.format(result.url), logger.ERROR)
+                logger.log(u'Failed to retrieve torrent from "%s"' % (result.url), logger.ERROR)
                 return False
         else:
             # Ye olde way, using blackhole ...

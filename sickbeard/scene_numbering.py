@@ -223,8 +223,8 @@ def _xem_refresh(tvdb_id):
     if tvdb_id is None:
         return
     
-    logger.log(u'Looking up xem mapping for {0}'.format(tvdb_id), logger.DEBUG)
-    data = getURL('http://thexem.de/map/all?id={0}&origin=tvdb&destination=scene'.format(tvdb_id))
+    logger.log(u'Looking up xem mapping for %s' % (tvdb_id,), logger.DEBUG)
+    data = getURL('http://thexem.de/map/all?id=%s&origin=tvdb&destination=scene' % (tvdb_id,))
     # http://thexem.de/map/all?id=164091&origin=tvdb&destination=scene
     result = json.loads(data)
     if result:
@@ -241,9 +241,9 @@ def _xem_refresh(tvdb_id):
                     cacheDB.action("INSERT INTO xem_numbering (tvdb_id, season, episode, scene_season, scene_episode) VALUES (?,?,?,?,?)", 
                                 [tvdb_id, entry['tvdb']['season'], entry['tvdb']['episode'], entry['scene_2']['season'], entry['scene_2']['episode'] ])
         else:
-            logger.log(u'Failure getting thexem.de for show {0} with message "{1}"'.format(tvdb_id, result['message']), logger.MESSAGE)
+            logger.log(u'Failure getting thexem.de for show %s with message "%s"' % (tvdb_id, result['message']), logger.MESSAGE)
     else:
-        logger.log(u"Empty lookup result - no data from thexem.de for {0}".format(tvdb_id), logger.MESSAGE)
+        logger.log(u"Empty lookup result - no data from thexem.de for %s" % (tvdb_id,), logger.MESSAGE)
     
 def get_xem_numbering_for_show(tvdb_id):
     """
