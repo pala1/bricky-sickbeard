@@ -434,6 +434,7 @@ class NZBProvider(GenericProvider):
 MAGNET_TO_TORRENT_URLS = ['http://torrage.com/torrent/%s.torrent',
                           'http://zoink.it/torrent/%s.torrent',
                           'http://torcache.net/torrent/%s.torrent',
+                          'http://torra.ws/torrent/%s.torrent', 
                           'http://torrage.ws/torrent/%s.torrent', 
                          ]
 
@@ -444,20 +445,37 @@ class TorrentProvider(GenericProvider):
         GenericProvider.__init__(self, name)
 
         self.providerType = GenericProvider.TORRENT
-        
+
+    @classmethod
+    def getHashFromCacheLink(cls, link):
+        """
+        Pulls the hash of a torrent from a link to an online torrent cache site
+        (typically one of MAGNET_TO_TORRENT_URLS).
+
+        Returns the 40 byte hex string on success, None on failure.
+        """
+        for m_to_u in MAGNET_TO_TORRENT_URLS:
+            m_to_u.replace('%%s', '([0-9A-Z]{40})', re.I)
+            hash_search = re.search(m_to_u, link)
+            if hash_search:
+                return hash_search.group(1).upper()
+
+        return None
+
     @classmethod
     def getHashFromMagnet(cls, magnet):
         """
         Pull the hash from a magnet link (if possible).
-        Handles the various possible encodings etc. 
-        (returning a 40 byte hex string).  
+        Handles the various possible encodings etc.
+        (returning a 40 byte hex string).
+
         Returns None on failure
         """
         logger.log('magnet: ' + magnet, logger.DEBUG)
         info_hash_search = re.search('btih:([0-9A-Z]+)', magnet, re.I)
         if info_hash_search:
             torrent_hash = info_hash_search.group(1)
-            
+
             # hex hashes will be 40 characters long, base32 will be 32 chars long
             if len(torrent_hash) == 32:
                 # convert the base32 to base 16
@@ -466,28 +484,44 @@ class TorrentProvider(GenericProvider):
             elif len(torrent_hash) <> 40:
                 logger.log('Torrent hash length (%d) is incorrect (should be 40), returning None' % (len(torrent_hash)), logger.DEBUG)
                 return None
-                
+
             logger.log('torrent_hash: ' + torrent_hash, logger.DEBUG)
             return torrent_hash.upper()
         else:
             # failed to pull info hash
             return None
-        
-    def magnetToTorrent(self, magnet):
+
+    @classmethod
+    def magnetToTorrent(cls, magnet):
         """
         This returns a single (best guess) url for a torrent file for the passed-in
         magnet link.
         For now it just uses the first entry from MAGNET_TO_TORRENT_URLS.
         If there's any problem with the magnet link, this will return None.
         """
-        torrent_hash = self.getHashFromMagnet(magnet)
+        torrent_hash = cls.getHashFromMagnet(magnet)
         if torrent_hash:
             return MAGNET_TO_TORRENT_URLS[0] % torrent_hash.upper()
         else:
             # failed to pull info hash
             return None
-        
-    
+
+    @classmethod
+    def cacheLinkToMagnet(cls, link):
+        """
+        Turns a link like http://torrage.com/torrent/FF5DC60F2D63339D5F1E1D53B4F099DD0C833658.torrent
+        into a magnet link like magnet:?xt=urn:btih:FF5DC60F2D63339D5F1E1D53B4F099DD0C833658
+
+        Returns a magnet link (a string) on success, or None on failure (i.e. 
+        if 'link' isn't a link to a torrent cache site)
+        """
+        the_hash = cls.getHashFromCacheLink(link)
+        if the_hash:
+            return 'magnet:?xt=urn:btih:' + the_hash
+
+        return None
+
+
     def getURL(self, url, headers=None):
         """
         Overridden to deal with possible magnet links (but still best to not

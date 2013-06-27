@@ -48,6 +48,7 @@ class ShowRssProvider(generic.TorrentProvider):
         self.supportsBacklog = True
         self.cache = ShowRssCache(self)
         self.url = 'http://showrss.karmorra.info/'
+        self.backup_urls = ['http://showrss.karmorra.info.nyud.net/', ]
 
     def isEnabled(self):
         return sickbeard.SHOWRSS
@@ -185,15 +186,21 @@ class ShowRssCache(tvcache.TVCache):
         # only poll ShowRss every 15 minutes max
         self.minTime = 15
 
-
     def _getRSSData(self):
         url = self.provider.url + 'feeds/all.rss'   # this is the "global" feed
-
-        logger.log(u"ShowRSS cache update URL: "+ url, logger.DEBUG)
-
+        logger.log(u"ShowRSS cache update URL: " + url, logger.DEBUG)
         data = self.provider.getURL(url)
+        if data:
+            return data
 
-        return data
+        for provider_url in self.provider.backup_urls:
+            url = provider_url + 'feeds/all.rss'
+            logger.log(u"ShowRSS cache update URL: " + url, logger.DEBUG)
+            data = self.provider.getURL(url)
+            if data:
+                return data
+
+        return None
 
     def _parseItem(self, item):
 
@@ -204,10 +211,16 @@ class ShowRssCache(tvcache.TVCache):
             return
             
         if url and self.provider.urlIsBlacklisted(url):
-            logger.log(u"url %s is blacklisted, skipping..." % url, logger.DEBUG)
-            return
+            # Url is blacklisted, but maybe we can turn it into a magnet which
+            # isn't?
+            as_magnet = self.provider.cacheLinkToMagnet(url)
+            if as_magnet is None or self.provider.urlIsBlacklisted(as_magnet):
+                logger.log(u"url %s is blacklisted (and can't be converted to a useful magnet), skipping..." % url, logger.DEBUG)
+                return
+            else:
+                url = as_magnet
 
-        logger.log(u"Adding item from RSS to cache: "+title, logger.DEBUG)
+        logger.log(u"Adding item from RSS to cache: " + title, logger.DEBUG)
 
         self._addCacheEntry(title, url)
 

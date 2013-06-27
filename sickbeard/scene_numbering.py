@@ -20,6 +20,7 @@
 #
 
 import time
+import traceback
 
 try:
     import json
@@ -223,27 +224,38 @@ def _xem_refresh(tvdb_id):
     if tvdb_id is None:
         return
     
-    logger.log(u'Looking up xem mapping for %s' % (tvdb_id,), logger.DEBUG)
-    data = getURL('http://thexem.de/map/all?id=%s&origin=tvdb&destination=scene' % (tvdb_id,))
-    # http://thexem.de/map/all?id=164091&origin=tvdb&destination=scene
-    result = json.loads(data)
-    if result:
-        _check_for_schema()
-        cacheDB = db.DBConnection('cache.db')
-        cacheDB.action("INSERT OR REPLACE INTO xem_refresh (tvdb_id, last_refreshed) VALUES (?,?)", [tvdb_id, time.time()])
-        if result['result'] == 'success':
-            cacheDB.action("DELETE FROM xem_numbering where tvdb_id = ?", [tvdb_id])
-            for entry in result['data']:
-                if 'scene' in entry:
-                    cacheDB.action("INSERT INTO xem_numbering (tvdb_id, season, episode, scene_season, scene_episode) VALUES (?,?,?,?,?)", 
-                                [tvdb_id, entry['tvdb']['season'], entry['tvdb']['episode'], entry['scene']['season'], entry['scene']['episode'] ])
-                if 'scene_2' in entry: # for doubles
-                    cacheDB.action("INSERT INTO xem_numbering (tvdb_id, season, episode, scene_season, scene_episode) VALUES (?,?,?,?,?)", 
-                                [tvdb_id, entry['tvdb']['season'], entry['tvdb']['episode'], entry['scene_2']['season'], entry['scene_2']['episode'] ])
+    try:
+        logger.log(u'Looking up xem mapping for %s' % (tvdb_id,), logger.DEBUG)
+        data = getURL('http://thexem.de/map/all?id=%s&origin=tvdb&destination=scene' % (tvdb_id,))
+        # http://thexem.de/map/all?id=164091&origin=tvdb&destination=scene
+        if data is None or data == '':
+            logger.log(u'No thexem.de data for show "%s", trying tvtumbler' % (tvdb_id,), logger.MESSAGE)
+            data = getURL('http://show-api.tvtumbler.com/api/thexem/all?id=%s&origin=tvdb&destination=scene' % (tvdb_id,))
+            if data is None or data == '':
+                logger.log(u'tvtumbler also failed for "%s".  giving up.' % (tvdb_id,), logger.MESSAGE)
+                return None
+        result = json.loads(data)
+        if result:
+            _check_for_schema()
+            cacheDB = db.DBConnection('cache.db')
+            cacheDB.action("INSERT OR REPLACE INTO xem_refresh (tvdb_id, last_refreshed) VALUES (?,?)", [tvdb_id, time.time()])
+            if result['result'] == 'success':
+                cacheDB.action("DELETE FROM xem_numbering where tvdb_id = ?", [tvdb_id])
+                for entry in result['data']:
+                    if 'scene' in entry:
+                        cacheDB.action("INSERT INTO xem_numbering (tvdb_id, season, episode, scene_season, scene_episode) VALUES (?,?,?,?,?)", 
+                                    [tvdb_id, entry['tvdb']['season'], entry['tvdb']['episode'], entry['scene']['season'], entry['scene']['episode'] ])
+                    if 'scene_2' in entry: # for doubles
+                        cacheDB.action("INSERT INTO xem_numbering (tvdb_id, season, episode, scene_season, scene_episode) VALUES (?,?,?,?,?)", 
+                                    [tvdb_id, entry['tvdb']['season'], entry['tvdb']['episode'], entry['scene_2']['season'], entry['scene_2']['episode'] ])
+            else:
+                logger.log(u'Failure getting thexem.de for show %s with message "%s"' % (tvdb_id, result['message']), logger.MESSAGE)
         else:
-            logger.log(u'Failure getting thexem.de for show %s with message "%s"' % (tvdb_id, result['message']), logger.MESSAGE)
-    else:
-        logger.log(u"Empty lookup result - no data from thexem.de for %s" % (tvdb_id,), logger.MESSAGE)
+            logger.log(u"Empty lookup result - no data from thexem.de for %s" % (tvdb_id,), logger.MESSAGE)
+    except Exception, e:
+        logger.log(u"Exception while refreshing thexem data for " + tvdb_id + ": " + e, logger.WARNING)
+        logger.log(traceback.format_exc(), logger.DEBUG)
+        return None
     
 def get_xem_numbering_for_show(tvdb_id):
     """
