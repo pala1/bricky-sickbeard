@@ -39,9 +39,9 @@ def _check_for_schema():
     if not _schema_created:
         myDB = db.DBConnection()
         cacheDB = db.DBConnection('cache.db')
-        myDB.action('CREATE TABLE if not exists scene_numbering (tvdb_id INTEGER, season INTEGER, episode INTEGER, scene_season INTEGER, scene_episode INTEGER, PRIMARY KEY (tvdb_id, season, episode))')
+        myDB.action('CREATE TABLE if not exists scene_num (tvdb_id INTEGER, season INTEGER, episode INTEGER, scene_season INTEGER, scene_episode INTEGER, PRIMARY KEY (tvdb_id, season, episode, scene_season, scene_episode))')
         
-        cacheDB.action('CREATE TABLE if not exists xem_numbering (tvdb_id INTEGER, season INTEGER, episode INTEGER, scene_season INTEGER, scene_episode INTEGER, PRIMARY KEY (tvdb_id, season, episode))')
+        cacheDB.action('CREATE TABLE if not exists xem_num (tvdb_id INTEGER, season INTEGER, episode INTEGER, scene_season INTEGER, scene_episode INTEGER, PRIMARY KEY (tvdb_id, season, episode, scene_season, scene_episode))')
         cacheDB.action('CREATE TABLE if not exists xem_refresh (tvdb_id INTEGER PRIMARY KEY, last_refreshed INTEGER)')
         _schema_created = True
         
@@ -81,7 +81,7 @@ def find_scene_numbering(tvdb_id, season, episode):
     _check_for_schema()
     myDB = db.DBConnection()
         
-    rows = myDB.select("SELECT scene_season, scene_episode FROM scene_numbering WHERE tvdb_id = ? and season = ? and episode = ?", [tvdb_id, season, episode])
+    rows = myDB.select("SELECT scene_season, scene_episode FROM scene_num WHERE tvdb_id = ? and season = ? and episode = ?", [tvdb_id, season, episode])
     if rows:
         return (int(rows[0]["scene_season"]), int(rows[0]["scene_episode"]))
     else:
@@ -98,7 +98,7 @@ def get_tvdb_numbering(tvdb_id, sceneSeason, sceneEpisode, fallback_to_xem=True)
     _check_for_schema()
     myDB = db.DBConnection()
         
-    rows = myDB.select("SELECT season, episode FROM scene_numbering WHERE tvdb_id = ? and scene_season = ? and scene_episode = ?", [tvdb_id, sceneSeason, sceneEpisode])
+    rows = myDB.select("SELECT season, episode FROM scene_num WHERE tvdb_id = ? and scene_season = ? and scene_episode = ?", [tvdb_id, sceneSeason, sceneEpisode])
     if rows:
         return (int(rows[0]["season"]), int(rows[0]["episode"]))
     else:
@@ -119,7 +119,7 @@ def get_scene_numbering_for_show(tvdb_id):
     myDB = db.DBConnection()
         
     rows = myDB.select('''SELECT season, episode, scene_season, scene_episode 
-                        FROM scene_numbering WHERE tvdb_id = ?
+                        FROM scene_num WHERE tvdb_id = ?
                         ORDER BY season, episode''', [tvdb_id])
     result = {}
     for row in rows:
@@ -144,11 +144,11 @@ def set_scene_numbering(tvdb_id, season, episode, sceneSeason=None, sceneEpisode
     #if sceneEpisode == None: sceneEpisode = episode
     
     # delete any existing record first
-    myDB.action('DELETE FROM scene_numbering where tvdb_id = ? and season = ? and episode = ?', [tvdb_id, season, episode])
+    myDB.action('DELETE FROM scene_num where tvdb_id = ? and season = ? and episode = ?', [tvdb_id, season, episode])
     
     # now, if the new numbering is not the default, we save a new record
     if sceneSeason is not None and sceneEpisode is not None:
-        myDB.action("INSERT INTO scene_numbering (tvdb_id, season, episode, scene_season, scene_episode) VALUES (?,?,?,?,?)", [tvdb_id, season, episode, sceneSeason, sceneEpisode])
+        myDB.action("INSERT INTO scene_num (tvdb_id, season, episode, scene_season, scene_episode) VALUES (?,?,?,?,?)", [tvdb_id, season, episode, sceneSeason, sceneEpisode])
             
             
 def find_xem_numbering(tvdb_id, season, episode):
@@ -169,7 +169,7 @@ def find_xem_numbering(tvdb_id, season, episode):
         _xem_refresh(tvdb_id)
         
     cacheDB = db.DBConnection('cache.db')
-    rows = cacheDB.select("SELECT scene_season, scene_episode FROM xem_numbering WHERE tvdb_id = ? and season = ? and episode = ?", [tvdb_id, season, episode])
+    rows = cacheDB.select("SELECT scene_season, scene_episode FROM xem_num WHERE tvdb_id = ? and season = ? and episode = ?", [tvdb_id, season, episode])
     if rows:
         return (int(rows[0]["scene_season"]), int(rows[0]["scene_episode"]))
     else:
@@ -191,7 +191,7 @@ def get_tvdb_numbering_for_xem(tvdb_id, sceneSeason, sceneEpisode):
     if _xem_refresh_needed(tvdb_id):
         _xem_refresh(tvdb_id)
     cacheDB = db.DBConnection('cache.db')
-    rows = cacheDB.select("SELECT season, episode FROM xem_numbering WHERE tvdb_id = ? and scene_season = ? and scene_episode = ?", [tvdb_id, sceneSeason, sceneEpisode])
+    rows = cacheDB.select("SELECT season, episode FROM xem_num WHERE tvdb_id = ? and scene_season = ? and scene_episode = ?", [tvdb_id, sceneSeason, sceneEpisode])
     if rows:
         return (int(rows[0]["season"]), int(rows[0]["episode"]))
     else:
@@ -240,20 +240,20 @@ def _xem_refresh(tvdb_id):
             cacheDB = db.DBConnection('cache.db')
             cacheDB.action("INSERT OR REPLACE INTO xem_refresh (tvdb_id, last_refreshed) VALUES (?,?)", [tvdb_id, time.time()])
             if result['result'] == 'success':
-                cacheDB.action("DELETE FROM xem_numbering where tvdb_id = ?", [tvdb_id])
+                cacheDB.action("DELETE FROM xem_num where tvdb_id = ?", [tvdb_id])
                 for entry in result['data']:
                     if 'scene' in entry:
-                        cacheDB.action("INSERT INTO xem_numbering (tvdb_id, season, episode, scene_season, scene_episode) VALUES (?,?,?,?,?)", 
+                        cacheDB.action("INSERT INTO xem_num (tvdb_id, season, episode, scene_season, scene_episode) VALUES (?,?,?,?,?)", 
                                     [tvdb_id, entry['tvdb']['season'], entry['tvdb']['episode'], entry['scene']['season'], entry['scene']['episode'] ])
                     if 'scene_2' in entry: # for doubles
-                        cacheDB.action("INSERT INTO xem_numbering (tvdb_id, season, episode, scene_season, scene_episode) VALUES (?,?,?,?,?)", 
+                        cacheDB.action("INSERT INTO xem_num (tvdb_id, season, episode, scene_season, scene_episode) VALUES (?,?,?,?,?)", 
                                     [tvdb_id, entry['tvdb']['season'], entry['tvdb']['episode'], entry['scene_2']['season'], entry['scene_2']['episode'] ])
             else:
                 logger.log(u'Failure getting thexem.de for show %s with message "%s"' % (tvdb_id, result['message']), logger.MESSAGE)
         else:
             logger.log(u"Empty lookup result - no data from thexem.de for %s" % (tvdb_id,), logger.MESSAGE)
     except Exception, e:
-        logger.log(u"Exception while refreshing thexem data for " + tvdb_id + ": " + e, logger.WARNING)
+        logger.log(u"Exception while refreshing thexem data for " + str(tvdb_id) + ": " + str(e), logger.WARNING)
         logger.log(traceback.format_exc(), logger.DEBUG)
         return None
     
@@ -272,7 +272,7 @@ def get_xem_numbering_for_show(tvdb_id):
     cacheDB = db.DBConnection('cache.db')
         
     rows = cacheDB.select('''SELECT season, episode, scene_season, scene_episode 
-                        FROM xem_numbering WHERE tvdb_id = ?
+                        FROM xem_num WHERE tvdb_id = ?
                         ORDER BY season, episode''', [tvdb_id])
     result = {}
     for row in rows:
