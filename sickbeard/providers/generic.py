@@ -624,6 +624,11 @@ class TorrentProvider(GenericProvider):
             if sickbeard.PREFER_MAGNETS:
                 try:
                     url = helpers.get_xml_text(item.getElementsByTagName('magnetURI')[0])
+                    torrent_hash = self.getHashFromMagnet(url)
+                    if not torrent_hash:
+                        logger.log(u'magnetURI "%s" found for "%s", but it has no valid hash - ignoring' % (url, title),
+                                   logger.WARNING)
+                        url = None
                 except Exception:
                     pass
             if url is None:
