@@ -15,6 +15,7 @@ import traceback
 from sickbeard import logger
 from sickbeard import version
 from sickbeard import helpers
+from sickbeard import encodingKludge as ek
 from sickbeard.exceptions import ex
 from sickbeard.helpers import isMediaFile
 from sickbeard import postProcessor
@@ -411,7 +412,7 @@ class TorrentProcessHandler():
                 if type(a) == str:
                     logger.log(a, logger.DEBUG)
                 else:
-                    logger.log(u'(%s): %s' % (type(a).__name__, a.message()), logger.DEBUG)
+                    logger.log(u'(%s): %s' % (type(a).__name__, ek.fixStupidEncodings(a.message(), True)), logger.DEBUG)
                     
             logTorrentStatus = (time.time() - self.lastTorrentStatusLogTS) >= 600
                 
