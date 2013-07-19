@@ -158,18 +158,19 @@ def download_from_torrent(torrent, filename=None, postProcessingDone=False, star
         startedDownload = False
         while not startedDownload:
             time.sleep(0.5)
-            s = h.status(0x0) # 0x0 because we don't want any of the optional info
+            s = h.status()
+
             if h.has_metadata():
                 i = h.get_torrent_info()
                 name = i.name()
                 running_torrent_ptr['status'] = str(s.state)
                 running_torrent_ptr['name'] = name
                 running_torrent_ptr['total_size'] = i.total_size()
-                running_torrent_ptr['paused'] = s.paused;
-                running_torrent_ptr['error'] = s.error;
-                if s.state in [lt.torrent_status.seeding, 
+                running_torrent_ptr['paused'] = s.paused
+                running_torrent_ptr['error'] = s.error
+                if s.state in [lt.torrent_status.seeding,
                                lt.torrent_status.downloading,
-                               lt.torrent_status.finished, 
+                               lt.torrent_status.finished,
                                lt.torrent_status.downloading_metadata]:
                     logger.log(u'Torrent "%s" has state "%s" (%s), interpreting as snatched' % (name, s.state, repr(s.state)), 
                                logger.MESSAGE)
@@ -433,13 +434,13 @@ class TorrentProcessHandler():
                 else:
                     name = '-'
                     
-                s = torrent_data['handle'].status()                    
+                s = torrent_data['handle'].status()
                 torrent_data['status'] = str(s.state)
                 torrent_data['progress'] = s.progress
                 torrent_data['rate_down'] = s.download_rate
                 torrent_data['rate_up'] = s.upload_rate
-                torrent_data['paused'] = s.paused;
-                torrent_data['error'] = s.error;
+                torrent_data['paused'] = s.paused
+                torrent_data['error'] = s.error
                 
                 #currentRatio = 0.0 if s.total_download == 0 else float(s.total_upload)/float(s.total_download)
                 currentRatio = 0.0 if s.all_time_download == 0 else float(s.all_time_upload)/float(s.all_time_download)
