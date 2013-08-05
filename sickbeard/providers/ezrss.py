@@ -20,6 +20,7 @@ import urllib
 import re
 from xml.dom.minidom import parseString
 from datetime import datetime
+from dateutil import parser
 
 import sickbeard
 import generic
@@ -225,8 +226,7 @@ class EZRSSCache(tvcache.TVCache):
                         
                         # pubDate has a timezone, but it makes things much easier if
                         # we ignore it (and we don't need that level of accuracy anyway)
-                        pub_date_pieces = pubDate.split(" ")[:-1]
-                        p_datetime = datetime.strptime(" ".join(pub_date_pieces), '%a, %d %b %Y %H:%M:%S')
+                        p_datetime = parser.parse(pubDate, ignoretz=True)
                         p_delta = datetime.now() - p_datetime
                         if p_delta.days > 3:
                             logger.log(u"Last entry in feed (after early parse) is %d days old - assuming feed is broken"%(p_delta.days), logger.MESSAGE)
