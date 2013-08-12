@@ -2113,7 +2113,7 @@ class ErrorLogs:
 
         for x in reversed(data):
 
-            x = x.decode('utf-8')
+            x = x.decode('utf-8', 'replace')
             match = re.match(regex, x)
 
             if match:
