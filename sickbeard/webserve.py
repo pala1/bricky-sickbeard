@@ -2099,22 +2099,23 @@ class ErrorLogs:
 
         data = []
         if os.path.isfile(logger.sb_log_instance.log_file):
-            f = ek.ek(open, logger.sb_log_instance.log_file)
+            f = ek.ek(open, logger.sb_log_instance.log_file, 'rU')
             data = f.readlines()
             f.close()
 
-        regex =  "^(\w{3})\-(\d\d)\s*(\d\d)\:(\d\d):(\d\d)\s*([A-Z]+)\s*(.+?)\s*\:\:\s*(.*)$"
+        regex = "^(\w{3,4})\-(\d\d)\s*(\d\d)\:(\d\d):(\d\d)\s*([A-Z]+)\s*(.+?)\s*\:\:\s*(.*)$"
 
         finalData = []
 
         numLines = 0
         lastLine = False
         numToShow = min(maxLines, len(data))
+        re_compiled = re.compile(regex, re.LOCALE | re.UNICODE)
 
         for x in reversed(data):
 
             x = x.decode('utf-8', 'replace')
-            match = re.match(regex, x)
+            match = re_compiled.match(x)
 
             if match:
                 level = match.group(6)
