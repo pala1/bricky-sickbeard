@@ -2,6 +2,8 @@
 Created on Apr 24, 2013
 
 @author: Dermot Buckley, dermot@buckley.ie
+
+@todo: this is a terrible mess.  Implement proper locking and abstraction.
 '''
 from __future__ import with_statement # This isn't required in Python 2.6
 
@@ -21,6 +23,7 @@ from sickbeard.helpers import isMediaFile
 from sickbeard import postProcessor
 from sickbeard import exceptions
 from sickbeard.tv import TVEpisode, TVShow
+from sickbeard.common import SNATCHED, WANTED
 import sickbeard
 
 LIBTORRENT_AVAILABLE = False
@@ -71,7 +74,25 @@ def _make_key_from_torrent(torrent):
         torrent_info = lt.torrent_info(lt.bdecode(torrent))
         return str(torrent_info.info_hash())
 
-def download_from_torrent(torrent, filename=None, postProcessingDone=False, start_time=None, key=None, episodes=[]):
+
+def _torrent_has_any_media_files(torrent_info):
+    """
+    Internal function to check if a torrent has any useful media files.
+    @param torrent_info: (a libtorrent torrent_info object)
+    @return: (bool) True if any useful media is found, false otherwise.
+    """
+    for f in torrent_info.files():
+        if isMediaFile(f.path):
+            return True
+    return False
+
+def _blacklist_torrent_url(torrentUrl):
+    logger.log(u'Blacklisting the url "%s"' % (torrentUrl), logger.MESSAGE)
+    from sickbeard.providers.generic import GenericProvider
+    GenericProvider.blacklistUrl(torrentUrl)
+
+def download_from_torrent(torrent, filename=None, postProcessingDone=False, start_time=None, key=None, episodes=[],
+                          originalTorrentUrl=None, blacklistOrigUrlOnFailure=False):
     """
     Download the files from a magnet link or torrent url.
     Returns True if the download begins.
@@ -84,6 +105,10 @@ def download_from_torrent(torrent, filename=None, postProcessingDone=False, star
     @param start_time: (int) Start time timestamp.  If None (the default), the current timestamp is used. 
     @param key: (string) Unique key to identify torrent.  Just used internally.  If none, a default is generated. 
     @param episodes: ([TVEpisode]) list of TVEpisode objects for which the download applies.
+    @param originalTorrentUrl: (string) the url that the torrent was originally pulled from (used for blacklisting)
+    @param blacklistOrigUrlOnFailure: (bool) blacklist the 'originalTorrentUrl' (via a call to 
+                    GenericProvider.blacklistUrl) if a failure occurs (such as no media files in torrent).  This
+                    param has no effect if 'originalTorrentUrl' is not set.
     @return: (bool) True if the download *starts*, False otherwise.
     """
     global running_torrents
@@ -108,6 +133,7 @@ def download_from_torrent(torrent, filename=None, postProcessingDone=False, star
         atp["auto_managed"] = True
         atp["duplicate_is_error"] = True
         have_torrentFile = False
+        checkedForMedia = False
         if torrent.startswith('magnet:') or torrent.startswith('http://') or torrent.startswith('https://'):
             logger.log(u'Adding torrent to session: %s' % (torrent), logger.DEBUG)
             atp["url"] = torrent
@@ -125,6 +151,14 @@ def download_from_torrent(torrent, filename=None, postProcessingDone=False, star
                 atp["resume_data"] = open(os.path.join(atp["save_path"], name_to_use + '.fastresume'), 'rb').read()
             except:
                 pass
+
+            if not _torrent_has_any_media_files(info):
+                logger.log(u'The torrent %s has no media files.  Not downloading.' % (name_to_use), logger.ERROR)
+                if blacklistOrigUrlOnFailure and originalTorrentUrl:
+                    _blacklist_torrent_url(originalTorrentUrl)
+                    return False
+            else:
+                checkedForMedia = True
     
             atp["ti"] = info
         
@@ -150,20 +184,41 @@ def download_from_torrent(torrent, filename=None, postProcessingDone=False, star
             'paused': False,
             'error': None,
             'episodes': episodes,
+            'checkedForMedia': checkedForMedia,
+            'originalTorrentUrl': originalTorrentUrl,
+            'blacklistOrigUrlOnFailure': blacklistOrigUrlOnFailure,
         })
         running_torrent_ptr = running_torrents[len(running_torrents) - 1]
-    
+
         h.set_max_connections(128)
         h.set_max_uploads(-1)
-        
+
         startedDownload = False
         while not startedDownload:
             time.sleep(0.5)
+
+            if not h.is_valid():
+                logger.log(u'Torrent handle is no longer valid.', logger.DEBUG)
+                if _find_running_torrent_by_field('handle', h):
+                    _remove_torrent_by_handle(h)
+                return False
+
             s = h.status()
 
             if h.has_metadata():
                 i = h.get_torrent_info()
                 name = i.name()
+
+                if not running_torrent_ptr['checkedForMedia']:
+                    with running_torrent_ptr['lock']:
+                        # Torrent has metadata, but hasn't been checked for valid media yet.  Do so now.
+                        if not _torrent_has_any_media_files(i):
+                            logger.log(u'Torrent %s has no media files! Deleting it.' % (name), logger.ERROR)
+                            _on_failed_torrent(running_torrent_ptr['key'], removeFromRunningTorrents=True,
+                                               markEpisodesWanted=True)
+                            return False
+                        running_torrent_ptr['checkedForMedia'] = True
+
                 running_torrent_ptr['status'] = str(s.state)
                 running_torrent_ptr['name'] = name
                 running_torrent_ptr['total_size'] = i.total_size()
@@ -339,45 +394,77 @@ def _load_saved_torrents(deleteSaveFile=True):
         try:
             data_from_pickle = pickle.load(open(torrent_save_file, "rb"))
             for td in data_from_pickle:
-                if 'episodes' not in td: # older pickles won't have this
+                if 'episodes' not in td:  # older pickles won't have these...
                     td['episodes'] = []
+                if 'originalTorrentUrl' not in td:
+                    td['originalTorrentUrl'] = None
+                if 'blacklistOrigUrlOnFailure' not in td:
+                    td['blacklistOrigUrlOnFailure'] = False
+
                 tvEpObjs = []
                 for ep in td['episodes']:
                     shw = helpers.findCertainShow(sickbeard.showList, ep['tvdbid'])
                     tvEpObjs.append(TVEpisode(show=shw, season=ep['season'], episode=ep['episode']))
-                download_from_torrent(torrent=td['torrent'], 
+                download_from_torrent(torrent=td['torrent'],
                                       postProcessingDone=td['post_processed'],
                                       start_time=td['start_time'],
                                       key=td['key'],
-                                      episodes=tvEpObjs)
+                                      episodes=tvEpObjs,
+                                      originalTorrentUrl=td['originalTorrentUrl'],
+                                      blacklistOrigUrlOnFailure=td['blacklistOrigUrlOnFailure'])
         except Exception, e:
             logger.log(u'Failure while reloading running torrents: %s' % (ex(e)), logger.ERROR)
         if deleteSaveFile:
             os.remove(torrent_save_file)
-    
+
+
 def _save_running_torrents():
     global running_torrents
     if len(running_torrents):
         data_to_pickle = []
         for torrent_data in running_torrents:
-            
+
             # we can't pickle TVEpisode objects, so we just pickle the useful info
-            # from the, namely the show, season, and episode.
+            # from them, namely the show, season, and episode.
             eps = []
             for ep in torrent_data['episodes']:
                 eps.append({'tvdbid': ep.show.tvdbid, 'season': ep.season, 'episode': ep.episode })
-            
+
             data_to_pickle.append({
                 'torrent'           : torrent_data['torrent'],
                 'post_processed'    : torrent_data['post_processed'],
                 'start_time'        : torrent_data['start_time'],
                 'key'               : torrent_data['key'],
                 'episodes'          : eps,
+                'originalTorrentUrl': torrent_data['originalTorrentUrl'],
+                'blacklistOrigUrlOnFailure': torrent_data['blacklistOrigUrlOnFailure'],
             })
             #logger.log(repr(data_to_pickle), logger.DEBUG)
         torrent_save_file = _get_running_torrents_pickle_path(True)
         logger.log(u'Saving running torrents to "%s"' % (torrent_save_file), logger.DEBUG)
         pickle.dump(data_to_pickle, open(torrent_save_file, "wb"))
+
+
+def _on_failed_torrent(key, removeFromRunningTorrents=True, markEpisodesWanted=False):
+    rTorr = _find_running_torrent_by_field('key', key)
+    if not rTorr:
+        logger.log(u'Failed to locate torrent with key "%s"' % (key), logger.MESSAGE)
+        return False
+
+    if rTorr['blacklistOrigUrlOnFailure'] and rTorr['originalTorrentUrl']:
+        _blacklist_torrent_url(rTorr['originalTorrentUrl'])
+
+    if markEpisodesWanted and rTorr['episodes']:
+        for ep in rTorr['episodes']:
+            if ep.status == SNATCHED:
+                logger.log(u'Changing episode status from SNATCHED to WANTED', logger.MESSAGE)
+                ep.status = WANTED
+                ep.saveToDB()
+
+    if removeFromRunningTorrents:
+        _remove_torrent_by_handle(rTorr['handle'], deleteFilesToo=True)
+
+    return True
 
 
 class TorrentProcessHandler():
@@ -431,6 +518,17 @@ class TorrentProcessHandler():
                         torrent_data['torrent'] = lt.bencode(torrentFile.generate())
                         torrent_data['have_torrentFile'] = True
                         logger.log(u'Created torrent file for %s as metadata d/l is now complete' % (name), logger.DEBUG)
+
+                    if not torrent_data['checkedForMedia']:
+                        with torrent_data['lock']:
+                            # Torrent has metadata, but hasn't been checked for valid media yet.  Do so now.
+                            if not _torrent_has_any_media_files(ti):
+                                logger.log(u'Torrent %s has no media files! Deleting it.' % (name), logger.ERROR)
+                                _on_failed_torrent(torrent_data['key'], removeFromRunningTorrents=True,
+                                               markEpisodesWanted=True)
+                                break  # continue here would be nice, but safer to break b/c we have modified the list
+
+                            torrent_data['checkedForMedia'] = True
 
                 else:
                     name = '-'

@@ -560,7 +560,9 @@ class TorrentProvider(GenericProvider):
                 torrent = result.url
                 
             if torrent:
-                return downloader.download_from_torrent(torrent=torrent, filename=result.name, episodes=result.episodes)
+                return downloader.download_from_torrent(torrent=torrent, filename=result.name,
+                                                        episodes=result.episodes, originalTorrentUrl=result.url,
+                                                        blacklistOrigUrlOnFailure=True)
             else:
                 logger.log(u'Failed to retrieve torrent from "%s"' % (result.url), logger.ERROR)
                 return False
