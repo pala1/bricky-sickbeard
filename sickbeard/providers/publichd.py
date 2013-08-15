@@ -37,42 +37,48 @@ class PublicHdProvider(generic.TorrentProvider):
 
     def imageName(self):
         return 'publichd.png'
-    
+
     def _get_title_and_url(self, item):
-        title = helpers.get_xml_text(item.getElementsByTagName('title')[0])
+        title = helpers.get_xml_text(item.find('title'))
+        # logger.log('publichd got title' + title)
+        url = None
         if sickbeard.PREFER_MAGNETS:
-            magnetURIs = item.getElementsByTagName('magnetURI')
-            if magnetURIs.length:
-                url = helpers.get_xml_text(magnetURIs[0])
-            else:
-                url = item.getElementsByTagName('enclosure')[0].getAttribute('url').replace('&amp;','&')
-        else:
-            url = item.getElementsByTagName('enclosure')[0].getAttribute('url').replace('&amp;','&')
-            
+            magnetURI = helpers.get_xml_text(item.find('{http://xmlns.ezrss.it/0.1/}torrent/{http://xmlns.ezrss.it/0.1/}magnetURI'))
+            # logger.log('publichd got magnetURI' + magnetURI)
+            if magnetURI:
+                url = magnetURI
+
+        if not url:
+            enclos = item.find('enclosure')
+            if enclos is not None:
+                url = enclos.get('url')
+                # logger.log('publichd got enclosure url ' + url)
+                if url:
+                    url = url.replace('&amp;', '&')
+
         if title.startswith('[TORRENT] '):
-            title = title[10:]    
-            
-        # these guys also get creative with the torrent names, adding crud at the 
+            title = title[10:]
+
+        # these guys also get creative with the torrent names, adding crud at the
         # end like "[PublicHD]", "[P2PDL]" etc. which confuses sb.  Best to
         # just remove it if present
         crudAtEndMatch = re.match(r'(.*) \[\w+\]$', title)
         if crudAtEndMatch:
             title = crudAtEndMatch.group(1)
-                    
+
         return (title, url)
-    
+
     def isValidCategory(self, item):
         """
         Decides if the category of an item (from the rss feed) could be a valid
         tv show.
-        @param item: An xml.dom.minidom.Node representing the <item> tag of the RSS feed
+        @param item: An elementTree Node representing the <item> tag of the RSS feed
         @return: boolean
         """
-        category = helpers.get_xml_text(item.getElementsByTagName('category')[0])
+        category = helpers.get_xml_text(item.find('category'))
         return category in ('BluRay 720p', 'BluRay 1080p', 'BluRay Remux',
                             'BluRay', 'BluRay 3D', 'XviD', 'BRRip',
                             'HDTV', 'SDTV', 'TV WEB-DL', 'TV Packs')
-    
 
 
 class PublicHdCache(tvcache.TVCache):
@@ -89,12 +95,12 @@ class PublicHdCache(tvcache.TVCache):
         return data
 
     def _parseItem(self, item):
-        
+
         (title, url) = self.provider._get_title_and_url(item)
         if not title or not url:
             logger.log(u"The XML returned from the PublicHD RSS feed is incomplete, this result is unusable", logger.ERROR)
             return
-        
+
         if url and self.provider.urlIsBlacklisted(url):
             logger.log(u'The url "%s" for "%s" is blacklisted, ignoring' % (url, title), logger.DEBUG)
             return

@@ -325,7 +325,7 @@ class DailyTvTorrentsProvider(generic.TorrentProvider):
     def _get_title_and_url(self, item):
         #(title, url) = generic.TorrentProvider._get_title_and_url(self, item)
 
-        title = helpers.get_xml_text(item.getElementsByTagName('title')[0])
+        title = helpers.get_xml_text(item.getElementsByTagName('title')[0], mini_dom=True)
         url = item.getElementsByTagName('enclosure')[0].getAttribute('url').replace('&amp;','&')
 
         return (title, url)

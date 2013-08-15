@@ -20,15 +20,12 @@ from __future__ import with_statement # This isn't required in Python 2.6
 
 import datetime
 import os
-import sys
 import re
-import urllib2
 import copy
 import traceback
-import re
 import base64
 import time
-from pprint import pprint
+import xml.dom.minidom
 
 import sickbeard
 
@@ -40,9 +37,8 @@ from sickbeard import encodingKludge as ek
 from sickbeard.exceptions import ex
 from sickbeard import downloader
 
-from lib.hachoir_parser import createParser
-
 from sickbeard.name_parser.parser import NameParser, InvalidNameException
+
 
 class GenericProvider:
 
@@ -108,7 +104,6 @@ class GenericProvider:
 
         return result
 
-
     def getURL(self, url, headers=None):
         """
         By default this is just a simple urlopen call but this method should be overridden
@@ -118,24 +113,24 @@ class GenericProvider:
         if not headers:
             headers = []
 
-        result = helpers.getURL(url, headers)
+        data = helpers.getURL(url, headers)
 
-        if result is None:
-            logger.log(u"Error loading "+self.name+" URL: " + url, logger.ERROR)
+        if not data:
+            logger.log(u"Error loading " + self.name + " URL: " + url, logger.ERROR)
             return None
 
-        return result
+        return data
 
     def downloadResult(self, result):
         """
         Save the result to disk.
         """
 
-        logger.log(u"Downloading a result from " + self.name+" at " + result.url)
+        logger.log(u"Downloading a result from " + self.name + " at " + result.url)
 
         data = self.getURL(result.url)
 
-        if data == None:
+        if not data:
             return False
 
         # use the appropriate watch folder
@@ -149,21 +144,21 @@ class GenericProvider:
             return False
 
         # use the result name as the filename
-        fileName = ek.ek(os.path.join, saveDir, helpers.sanitizeFileName(result.name) + '.' + self.providerType)
+        file_name = ek.ek(os.path.join, saveDir, helpers.sanitizeFileName(result.name) + '.' + self.providerType)
 
-        logger.log(u"Saving to " + fileName, logger.DEBUG)
+        logger.log(u"Saving to " + file_name, logger.DEBUG)
 
         try:
-            fileOut = open(fileName, writeMode)
+            fileOut = open(file_name, writeMode)
             fileOut.write(data)
             fileOut.close()
-            helpers.chmodAsParent(fileName)
+            helpers.chmodAsParent(file_name)
         except IOError, e:
-            logger.log("Unable to save the file: "+ex(e), logger.ERROR)
+            logger.log(u"Unable to save the file: " + ex(e), logger.ERROR)
             return False
 
         # as long as it's a valid download then consider it a successful snatch
-        return self._verify_download(fileName)
+        return self._verify_download(file_name)
 
     def _verify_download(self, file_name=None):
         """
@@ -174,18 +169,23 @@ class GenericProvider:
         return True
 
     def searchRSS(self):
+
+        self._checkAuth()
         self.cache.updateCache()
+
         return self.cache.findNeededEpisodes()
 
     def getQuality(self, item):
         """
         Figures out the quality of the given RSS item node
-        
-        item: An xml.dom.minidom.Node representing the <item> tag of the RSS feed
-        
-        Returns a Quality value obtained from the node's data 
+
+        item: An elementtree.ElementTree element (or xml.dom.minidom.Node)
+            representing the <item> tag of the RSS feed
+
+        Returns a Quality value obtained from the node's data
+
         """
-        (title, url) = self._get_title_and_url(item) #@UnusedVariable
+        (title, url) = self._get_title_and_url(item)  # @UnusedVariable
         quality = Quality.nameQuality(title)
         return quality
 
@@ -197,27 +197,48 @@ class GenericProvider:
 
     def _get_episode_search_strings(self, ep_obj):
         return []
-    
+
     def _get_title_and_url(self, item):
         """
-        Retrieves the title and URL data from the item XML node
-        item: An xml.dom.minidom.Node representing the <item> tag of the RSS feed
-        Returns: A tuple containing two strings representing title and URL respectively
+        Retrieves the title and URL data from the item XML node.
+
+        Some Einstein decided to change `item` from a xml.dom.minidom.Node to
+        an elementtree.ElementTree element upstream, without taking into
+        account that this is the base for *LOTS* of classes, so it will
+        basically break every one of them unless they are all changed.
+        Why does python even allow this crap?  Strong typing is a good thing
+        for a language Guido!
+
+        (so, rant over, we now need to cater for both cases here)
+
+        @param item: An xml.dom.minidom.Node (or an elementtree.ElementTree
+                element) representing the <item> tag of the RSS feed.
+        @return: A tuple containing two strings representing title and URL
+                respectively.
         """
-        title = helpers.get_xml_text(item.getElementsByTagName('title')[0])
-        try:
-            url = helpers.get_xml_text(item.getElementsByTagName('link')[0])
+        if isinstance(item, xml.dom.minidom.Node):
+            title = helpers.get_xml_text(item.getElementsByTagName('title')[0], mini_dom=True)
+            try:
+                url = helpers.get_xml_text(item.getElementsByTagName('link')[0], mini_dom=True)
+                if url:
+                    url = url.replace('&amp;', '&')
+            except IndexError:
+                url = None
+        else:
+            title = helpers.get_xml_text(item.find('title'))
+            if title:
+                title = title.replace(' ', '.')
+
+            url = helpers.get_xml_text(item.find('link'))
             if url:
-                url = url.replace('&amp;','&')
-        except IndexError:
-            url = None
-        
+                url = url.replace('&amp;', '&')
+
         return (title, url)
-    
+
     def findEpisode(self, episode, manualSearch=False):
 
         self._checkAuth()
-        
+
         # create a copy of the episode, using scene numbering
         episode_scene = copy.copy(episode)
         episode_scene.convertToSceneNumbering()
@@ -244,7 +265,7 @@ class GenericProvider:
         for item in itemList:
 
             (title, url) = self._get_title_and_url(item)
-            
+
             if self.urlIsBlacklisted(url):
                 logger.log(u'Ignoring %s as the url %s is blacklisted' % (title, url), logger.DEBUG)
                 continue
@@ -261,6 +282,7 @@ class GenericProvider:
                 if parse_result.air_date != episode.airdate:
                     logger.log(u"Episode " + title + " didn't air on " + str(episode.airdate) + ", skipping it", logger.DEBUG)
                     continue
+
             elif parse_result.season_number != episode.season or episode.episode not in parse_result.episode_numbers:
                 logger.log(u"Episode " + title + " isn't " + str(episode.season) + "x" + str(episode.episode) + ", skipping it", logger.DEBUG)
                 continue
@@ -282,20 +304,18 @@ class GenericProvider:
 
         return results
 
-
-
     def findSeasonResults(self, show, season):
 
         itemList = []
         results = {}
 
-        for curString in self._get_season_search_strings(show, season):
-            itemList += self._doSearch(curString)
+        for cur_string in self._get_season_search_strings(show, season):
+            itemList += self._doSearch(cur_string)
 
         for item in itemList:
 
             (title, url) = self._get_title_and_url(item)
-            
+
             if self.urlIsBlacklisted(url):
                 logger.log(u'Ignoring %s as the url %s is blacklisted' % (title, url), logger.DEBUG)
                 continue
@@ -307,31 +327,31 @@ class GenericProvider:
                 myParser = NameParser(False)
                 parse_result = myParser.parse(title, True)
             except InvalidNameException:
-                logger.log(u"Unable to parse the filename "+title+" into a valid episode", logger.WARNING)
+                logger.log(u"Unable to parse the filename " + title + " into a valid episode", logger.WARNING)
                 continue
 
             if not show.air_by_date:
                 # this check is meaningless for non-season searches
                 if (parse_result.season_number != None and parse_result.season_number != season) or (parse_result.season_number == None and season != 1):
-                    logger.log(u"The result "+title+" doesn't seem to be a valid episode for season "+str(season)+", ignoring")
+                    logger.log(u"The result " + title + " doesn't seem to be a valid episode for season " + str(season) + ", ignoring")
                     continue
 
                 # we just use the existing info for normal searches
                 actual_season = season
                 actual_episodes = parse_result.episode_numbers
-            
+
             else:
                 if not parse_result.air_by_date:
-                    logger.log(u"This is supposed to be an air-by-date search but the result "+title+" didn't parse as one, skipping it", logger.DEBUG)
+                    logger.log(u"This is supposed to be an air-by-date search but the result " + title + " didn't parse as one, skipping it", logger.DEBUG)
                     continue
-                
+
                 myDB = db.DBConnection()
                 sql_results = myDB.select("SELECT season, episode FROM tv_episodes WHERE showid = ? AND airdate = ?", [show.tvdbid, parse_result.air_date.toordinal()])
 
                 if len(sql_results) != 1:
-                    logger.log(u"Tried to look up the date for the episode "+title+" but the database didn't give proper results, skipping it", logger.WARNING)
+                    logger.log(u"Tried to look up the date for the episode " + title + " but the database didn't give proper results, skipping it", logger.WARNING)
                     continue
-                
+
                 actual_season = int(sql_results[0]["season"])
                 actual_episodes = [int(sql_results[0]["episode"])]
 
@@ -341,9 +361,9 @@ class GenericProvider:
                 if not show.wantEpisode(actual_season, epNo, quality):
                     wantEp = False
                     break
-            
+
             if not wantEp:
-                logger.log(u"Ignoring result "+title+" because we don't want an episode that is "+Quality.qualityStrings[quality], logger.DEBUG)
+                logger.log(u"Ignoring result " + title + " because we don't want an episode that is " + Quality.qualityStrings[quality], logger.DEBUG)
                 continue
 
             logger.log(u"Found result " + title + " at " + url, logger.DEBUG)
@@ -362,7 +382,7 @@ class GenericProvider:
                 epNum = epObj[0].episode
             elif len(epObj) > 1:
                 epNum = MULTI_EP_RESULT
-                logger.log(u"Separating multi-episode result to check for later - result contains episodes: "+str(parse_result.episode_numbers), logger.DEBUG)
+                logger.log(u"Separating multi-episode result to check for later - result contains episodes: " + str(parse_result.episode_numbers), logger.DEBUG)
             elif len(epObj) == 0:
                 epNum = SEASON_RESULT
                 result.extraInfo = [show]
@@ -373,22 +393,21 @@ class GenericProvider:
             else:
                 results[epNum] = [result]
 
-
         return results
 
-    def findPropers(self, date=None):
+    def findPropers(self, search_date=None):
 
-        results = self.cache.listPropers(date)
+        results = self.cache.listPropers(search_date)
 
         return [classes.Proper(x['name'], x['url'], datetime.datetime.fromtimestamp(x['time'])) for x in results]
-    
+
     # Dictionary of blacklisted torrent urls.  Keys are the url, values are the 
     # timestamp when it was added
     url_blacklist = {}
 
     # How long does an entry stay in the URL_BLACKLIST?
-    URL_BLACKLIST_EXPIRY_SECS = 172800 # 172800 = 2 days
-    
+    URL_BLACKLIST_EXPIRY_SECS = 172800  # 172800 = 2 days
+
     @classmethod
     def urlIsBlacklisted(cls, url):
         """
@@ -427,16 +446,17 @@ class NZBProvider(GenericProvider):
         GenericProvider.__init__(self, name)
 
         self.providerType = GenericProvider.NZB
-        
-        
+
+
 # This is a list of sites that serve torrent files given the associated hash.
 # They will be tried in order, so put the most reliable at the top.
 MAGNET_TO_TORRENT_URLS = ['http://torrage.com/torrent/%s.torrent',
                           'http://zoink.it/torrent/%s.torrent',
                           'http://torcache.net/torrent/%s.torrent',
-                          'http://torra.ws/torrent/%s.torrent', 
-                          'http://torrage.ws/torrent/%s.torrent', 
+                          'http://torra.ws/torrent/%s.torrent',
+                          'http://torrage.ws/torrent/%s.torrent',
                          ]
+
 
 class TorrentProvider(GenericProvider):
 
@@ -481,7 +501,7 @@ class TorrentProvider(GenericProvider):
                 # convert the base32 to base 16
                 logger.log('base32_hash: ' + torrent_hash, logger.DEBUG)
                 torrent_hash = base64.b16encode(base64.b32decode(torrent_hash, True))
-            elif len(torrent_hash) <> 40:
+            elif len(torrent_hash) != 40:
                 logger.log('Torrent hash length (%d) is incorrect (should be 40), returning None' % (len(torrent_hash)), logger.DEBUG)
                 return None
 
@@ -494,8 +514,8 @@ class TorrentProvider(GenericProvider):
     @classmethod
     def magnetToTorrent(cls, magnet):
         """
-        This returns a single (best guess) url for a torrent file for the passed-in
-        magnet link.
+        This returns a single (best guess) url for a torrent file for the 
+        passed-in magnet link.
         For now it just uses the first entry from MAGNET_TO_TORRENT_URLS.
         If there's any problem with the magnet link, this will return None.
         """
@@ -512,7 +532,7 @@ class TorrentProvider(GenericProvider):
         Turns a link like http://torrage.com/torrent/FF5DC60F2D63339D5F1E1D53B4F099DD0C833658.torrent
         into a magnet link like magnet:?xt=urn:btih:FF5DC60F2D63339D5F1E1D53B4F099DD0C833658
 
-        Returns a magnet link (a string) on success, or None on failure (i.e. 
+        Returns a magnet link (a string) on success, or None on failure (i.e.
         if 'link' isn't a link to a torrent cache site)
         """
         the_hash = cls.getHashFromCacheLink(link)
@@ -520,7 +540,6 @@ class TorrentProvider(GenericProvider):
             return 'magnet:?xt=urn:btih:' + the_hash
 
         return None
-
 
     def getURL(self, url, headers=None):
         """
@@ -535,17 +554,17 @@ class TorrentProvider(GenericProvider):
             else:
                 logger.log(u"Failed to handle magnet url %s, skipping..." % url, logger.DEBUG)
                 return None
-            
+
         # magnet link fixed, just call the base class
         return GenericProvider.getURL(self, url, headers)
-    
+
     def downloadResult(self, result):
         """
         Overridden to handle magnet links (using multiple fallbacks), and now libtorrent
         downloads also.
         """
-        logger.log(u"Downloading a result from " + self.name+" at " + result.url)
-        
+        logger.log(u"Downloading a result from " + self.name + " at " + result.url)
+
         if sickbeard.USE_LIBTORRENT:
             # libtorrent can download torrent files from urls, but it's probably safer for us
             # to do it first so that we can report errors immediately.
@@ -558,7 +577,7 @@ class TorrentProvider(GenericProvider):
                     return False
             else:
                 torrent = result.url
-                
+
             if torrent:
                 return downloader.download_from_torrent(torrent=torrent, filename=result.name,
                                                         episodes=result.episodes, originalTorrentUrl=result.url,
@@ -568,7 +587,7 @@ class TorrentProvider(GenericProvider):
                 return False
         else:
             # Ye olde way, using blackhole ...
-            
+
             if result.url and result.url.startswith('magnet:'):
                 torrent_hash = self.getHashFromMagnet(result.url)
                 if torrent_hash:
@@ -579,14 +598,14 @@ class TorrentProvider(GenericProvider):
                     return False
             else:
                 urls = [result.url]
-                
+
             # use the result name as the filename
             fileName = ek.ek(os.path.join, sickbeard.TORRENT_DIR, helpers.sanitizeFileName(result.name) + '.' + self.providerType)
-                
+
             for url in urls:
                 logger.log(u"Trying d/l url: " + url, logger.DEBUG)
                 data = self.getURL(url)
-                
+
                 if data == None:
                     logger.log(u"Got no data for " + url, logger.DEBUG)
                     # fall through to next iteration
@@ -602,52 +621,69 @@ class TorrentProvider(GenericProvider):
                     except IOError, e:
                         logger.log("Unable to save the file: "+ex(e), logger.ERROR)
                         return False
-                    
+
                     logger.log(u"Success with url: " + url, logger.DEBUG)
                     return True
             else:
                 logger.log(u"All d/l urls have failed.  Sorry.", logger.MESSAGE)
                 return False
-        
-        
+
         return False
-    
+
     def _get_title_and_url(self, item):
         """
         Retrieves the title and URL data from the item XML node.
         Overridden here so that we can have a preference for magnets.
-        
+
+        @see rant in GenericProvider._get_title_and_url
+        (yes, this is lazy coding for now)
+
         item: An xml.dom.minidom.Node representing the <item> tag of the RSS feed
         Returns: A tuple containing two strings representing title and URL respectively
         """
-        title = helpers.get_xml_text(item.getElementsByTagName('title')[0])
-        url = None
-        try:
+        if isinstance(item, xml.dom.minidom.Node):
+            title = helpers.get_xml_text(item.getElementsByTagName('title')[0], mini_dom=True)
+            url = None
+            try:
+                if sickbeard.PREFER_MAGNETS:
+                    try:
+                        url = helpers.get_xml_text(item.getElementsByTagName('magnetURI')[0], mini_dom=True)
+                        torrent_hash = self.getHashFromMagnet(url)
+                        if not torrent_hash:
+                            logger.log(u'magnetURI "%s" found for "%s", but it has no valid hash - ignoring' % (url, title),
+                                       logger.WARNING)
+                            url = None
+                    except Exception:
+                        pass
+                if url is None:
+                    url = helpers.get_xml_text(item.getElementsByTagName('link')[0], mini_dom=True)
+                    if url:
+                        url = url.replace('&amp;', '&')
+            except IndexError:
+                url = None
+        else:
+            title = helpers.get_xml_text(item.find('title'))
+            url = None
             if sickbeard.PREFER_MAGNETS:
-                try:
-                    url = helpers.get_xml_text(item.getElementsByTagName('magnetURI')[0])
+                url = helpers.get_xml_text(item.find('{http://xmlns.ezrss.it/0.1/}torrent/{http://xmlns.ezrss.it/0.1/}magnetURI'))
+                if url:
                     torrent_hash = self.getHashFromMagnet(url)
                     if not torrent_hash:
                         logger.log(u'magnetURI "%s" found for "%s", but it has no valid hash - ignoring' % (url, title),
                                    logger.WARNING)
                         url = None
-                except Exception:
-                    pass
-            if url is None:
-                url = helpers.get_xml_text(item.getElementsByTagName('link')[0])
+            if not url:
+                url = helpers.get_xml_text(item.find('link'))
                 if url:
-                    url = url.replace('&amp;','&')
-        except IndexError:
-            url = None
-        
+                    url = url.replace('&amp;', '&')
+
         return (title, url)
-    
+
     def _verify_download(self, file_name=None):
         """
         Checks the saved file to see if it was actually valid, if not then consider the download a failure.
         Returns a Boolean
         """
-        
         logger.log(u"Verifying Download %s" % file_name, logger.DEBUG)
         try:
             with open(file_name, "rb") as f:
@@ -676,13 +712,12 @@ class TorrentProvider(GenericProvider):
             (torrent_file_contents.startswith("d8:announce") or \
              torrent_file_contents.startswith("d12:_info_length"))
 
+
 class VODProvider(GenericProvider):
     """
     Video-On-Demand provider
     """
-    
+
     def __init__(self, name):
         GenericProvider.__init__(self, name)
         self.providerType = GenericProvider.VOD
-
-    

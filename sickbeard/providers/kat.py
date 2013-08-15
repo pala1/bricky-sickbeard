@@ -59,7 +59,7 @@ class KATProvider(generic.TorrentProvider):
         
         # I think the only place we can get anything resembing the filename is in 
         # the title
-        filename = helpers.get_xml_text(item.getElementsByTagName('title')[0])
+        filename = helpers.get_xml_text(item.getElementsByTagName('title')[0], mini_dom=True)
 
         quality = Quality.nameQuality(filename)
         
@@ -277,13 +277,13 @@ class KATProvider(generic.TorrentProvider):
     def _get_title_and_url(self, item):
         #(title, url) = generic.TorrentProvider._get_title_and_url(self, item)
 
-        title = helpers.get_xml_text(item.getElementsByTagName('title')[0])
+        title = helpers.get_xml_text(item.getElementsByTagName('title')[0], mini_dom=True)
         
         url = None
         if sickbeard.PREFER_MAGNETS:
             # if we have a preference for magnets, go straight for the throat...
             try:
-                url = helpers.get_xml_text(item.getElementsByTagName('magnetURI')[0])
+                url = helpers.get_xml_text(item.getElementsByTagName('magnetURI')[0], mini_dom=True)
             except Exception:
                 pass
                 
@@ -293,7 +293,7 @@ class KATProvider(generic.TorrentProvider):
         return (title, url)
 
     def _get_seeders(self, item):
-        return int(helpers.get_xml_text(item.getElementsByTagName('torrent:seeds')[0]))
+        return int(helpers.get_xml_text(item.getElementsByTagName('torrent:seeds')[0], mini_dom=True))
 
     def _extract_name_from_filename(self, filename):
         name_regex = '(.*?)\.?(\[.*]|\d+\.TPB)\.torrent$'
