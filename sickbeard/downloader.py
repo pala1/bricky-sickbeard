@@ -23,7 +23,7 @@ from sickbeard.helpers import isMediaFile
 from sickbeard import postProcessor
 from sickbeard import exceptions
 from sickbeard.tv import TVEpisode, TVShow
-from sickbeard.common import SNATCHED, WANTED
+from sickbeard.common import SNATCHED, WANTED, Quality
 import sickbeard
 
 LIBTORRENT_AVAILABLE = False
@@ -454,12 +454,28 @@ def _on_failed_torrent(key, removeFromRunningTorrents=True, markEpisodesWanted=F
     if rTorr['blacklistOrigUrlOnFailure'] and rTorr['originalTorrentUrl']:
         _blacklist_torrent_url(rTorr['originalTorrentUrl'])
 
-    if markEpisodesWanted and rTorr['episodes']:
-        for ep in rTorr['episodes']:
-            if ep.status == SNATCHED:
-                logger.log(u'Changing episode status from SNATCHED to WANTED', logger.MESSAGE)
-                ep.status = WANTED
-                ep.saveToDB()
+    if markEpisodesWanted:
+        if rTorr['episodes']:
+            for ep in rTorr['episodes']:
+                # fucked up no?  We need to do this b/c there's no way to *refresh* from the db without
+                # actually creating a new TVEpisode object!
+                epTemp = TVEpisode(show=ep.show, season=ep.season, episode=ep.episode)
+                if epTemp.status in Quality.SNATCHED + Quality.SNATCHED_PROPER:
+                    logger.log(u'Changing episode %s status from SNATCHED to WANTED' % (epTemp.prettyName()),
+                               logger.MESSAGE)
+                    epTemp.status = WANTED
+                    epTemp.saveToDB()
+                else:
+                    logger.log(u'NOT Changing episode %s status to WANTED b/c current '
+                               'status is not SNATCHED (actual status is %s)' % (
+                                        epTemp.prettyName(), str(epTemp.status)),
+                               logger.MESSAGE)
+        else:
+            logger.log(u'Cannot markEpisodesWanted b/c entry has no episodes',
+                   logger.DEBUG)
+    else:
+        logger.log(u'Not marking episodes as wanted b/c markEpisodesWanted was False',
+                   logger.DEBUG)
 
     if removeFromRunningTorrents:
         _remove_torrent_by_handle(rTorr['handle'], deleteFilesToo=True)
