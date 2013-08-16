@@ -59,7 +59,7 @@ class KATProvider(generic.TorrentProvider):
         
         # I think the only place we can get anything resembing the filename is in 
         # the title
-        filename = helpers.get_xml_text(item.getElementsByTagName('title')[0], mini_dom=True)
+        filename = helpers.get_xml_text(item.find('title'))
 
         quality = Quality.nameQuality(filename)
         
@@ -238,19 +238,18 @@ class KATProvider(generic.TorrentProvider):
         if searchURL.endswith('%20'):
             searchURL = searchURL[:-3]
 
-        searchURL = searchURL + '%20verified:1/?' + urllib.urlencode(params) # this will likely only append the rss=1 part
+        searchURL = searchURL + '%20verified:1/?' + urllib.urlencode(params)  # this will likely only append the rss=1 part
 
         return searchURL
 
     def _parseKatRSS(self, data):
 
-        try:
-            parsedXML = parseString(data)
-            items = parsedXML.getElementsByTagName('item')
-        except Exception, e:
-            logger.log(u"Error trying to load KAT RSS feed: "+ex(e), logger.ERROR)
-            logger.log(u"RSS data: "+data, logger.DEBUG)
+        parsedXML = helpers.parse_xml(data)
+        if parsedXML is None:
+            logger.log(u"Error trying to load " + self.name + " RSS feed", logger.ERROR)
             return []
+
+        items = parsedXML.findall('.//item')
 
         results = []
 
@@ -265,7 +264,7 @@ class KATProvider(generic.TorrentProvider):
             if self._get_seeders(curItem) <= 0:
                 logger.log(u"Discarded result with no seeders: " + title, logger.DEBUG)
                 continue
-            
+
             if self.urlIsBlacklisted(url):
                 logger.log(u'URL "%s" for "%s" is blacklisted, ignoring.' % (url, title), logger.DEBUG)
                 continue
@@ -275,50 +274,58 @@ class KATProvider(generic.TorrentProvider):
         return results
 
     def _get_title_and_url(self, item):
-        #(title, url) = generic.TorrentProvider._get_title_and_url(self, item)
+        #     <item>
+        #         <title>The Dealership S01E03 HDTV x264 C4TV</title>
+        #         <category>TV</category>
+        #         <link>http://kickass.to/the-dealership-s01e03-hdtv-x264-c4tv-t7739376.html</link>
+        #         <guid>http://kickass.to/the-dealership-s01e03-hdtv-x264-c4tv-t7739376.html</guid>
+        #         <pubDate>Thu, 15 Aug 2013 20:54:03 +0000</pubDate>
+        #         <torrent:contentLength>311302749</torrent:contentLength>
+        #         <torrent:infoHash>F94F9B44A03DDA439E5818E2C2F18342103522EF</torrent:infoHash>
+        #         <torrent:magnetURI><![CDATA[magnet:?xt=urn:btih:F94F9B44A03DDA439E5818E2C2F18342103522EF&dn=the+dealership+s01e03+hdtv+x264+c4tv&tr=udp%3A%2F%2Ftracker.publicbt.com%3A80&tr=udp%3A%2F%2Fopen.demonii.com%3A1337]]></torrent:magnetURI>
+        #         <torrent:seeds>0</torrent:seeds>
+        #         <torrent:peers>0</torrent:peers>
+        #         <torrent:verified>0</torrent:verified>
+        #         <torrent:fileName>the.dealership.s01e03.hdtv.x264.c4tv.torrent</torrent:fileName>
+        #         <enclosure url="http://torcache.net/torrent/F94F9B44A03DDA439E5818E2C2F18342103522EF.torrent?title=[kickass.to]the.dealership.s01e03.hdtv.x264.c4tv" length="311302749" type="application/x-bittorrent" />
+        #     </item>
 
-        title = helpers.get_xml_text(item.getElementsByTagName('title')[0], mini_dom=True)
-        
+        title = helpers.get_xml_text(item.find('title'))
+
         url = None
         if sickbeard.PREFER_MAGNETS:
             # if we have a preference for magnets, go straight for the throat...
-            try:
-                url = helpers.get_xml_text(item.getElementsByTagName('magnetURI')[0], mini_dom=True)
-            except Exception:
-                pass
-                
-        if url is None:
-            url = item.getElementsByTagName('enclosure')[0].getAttribute('url').replace('&amp;','&')
+            url = helpers.get_xml_text(item.find('{http://xmlns.ezrss.it/0.1/}torrent/{http://xmlns.ezrss.it/0.1/}magnetURI'))
+            if not url:
+                # The above, although standard, is unlikely in kat.  They kinda screw up their namespaces, so we get
+                # this instead...
+                url = helpers.get_xml_text(item.find('{http://xmlns.ezrss.it/0.1/}magnetURI'))
+
+        if not url:
+            enclos = item.find('enclosure')
+            if enclos is not None:
+                url = enclos.get('url')
+                if url:
+                    url = url.replace('&amp;', '&')
+
+        if not url:
+            url = None  # this should stop us returning empty strings as urls
 
         return (title, url)
 
     def _get_seeders(self, item):
-        return int(helpers.get_xml_text(item.getElementsByTagName('torrent:seeds')[0], mini_dom=True))
+        try:
+            return int(helpers.get_xml_text(item.find('{http://xmlns.ezrss.it/0.1/}seeds')))
+        except ValueError:
+            return 1  # safer to return 1 than 0, otherwise if this breaks all torrents would be ignored!
 
     def _extract_name_from_filename(self, filename):
         name_regex = '(.*?)\.?(\[.*]|\d+\.TPB)\.torrent$'
-        logger.log(u"Comparing "+name_regex+" against "+filename, logger.DEBUG)
+        logger.log(u"Comparing " + name_regex + " against " + filename, logger.DEBUG)
         match = re.match(name_regex, filename, re.I)
         if match:
             return match.group(1)
         return None
-    
-#    <item>
-#        <title>James Mays Things You Need To Know S02E06 HDTV XviD-AFG</title>
-#        <description>random text in here</description>        
-#        <category>Tv</category>
-#        <link>http://kat.ph/james-mays-things-you-need-to-know-s02e06-hdtv-xvid-afg-t6666685.html</link>
-#        <guid>http://kat.ph/james-mays-things-you-need-to-know-s02e06-hdtv-xvid-afg-t6666685.html</guid>
-#        <pubDate>Mon, 17 Sep 2012 22:48:02 +0000</pubDate>
-#        <torrentLink>http://kat.ph/james-mays-things-you-need-to-know-s02e06-hdtv-xvid-afg-t6666685.html</torrentLink>
-#        <hash>556022412DE29EE0B0AC1ED83EF610AA3081CDA4</hash>
-#        <peers>0</peers>
-#        <seeds>0</seeds>
-#        <leechs>0</leechs>
-#        <size>255009149</size>
-#        <verified>1</verified>
-#        <enclosure url="https://torcache.net/torrent/556022412DE29EE0B0AC1ED83EF610AA3081CDA4.torrent?title=[kat.ph]james.mays.things.you.need.to.know.s02e06.hdtv.xvid.afg" length="255009149" type="application/x-bittorrent" />
-#    </item>
 
 
 class KATCache(tvcache.TVCache):
@@ -332,7 +339,8 @@ class KATCache(tvcache.TVCache):
 
 
     def _getRSSData(self):
-        url = self.provider.url + 'tv/?rss=1'
+        # url = self.provider.url + 'tv/?rss=1'
+        url = self.provider.url + 'usearch/category%3Atv%20verified%3A1/?rss=1'  # better maybe? - verified only
 
         logger.log(u"KAT cache update URL: "+ url, logger.DEBUG)
 
