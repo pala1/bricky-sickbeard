@@ -121,7 +121,7 @@ class AnyRssProvider(generic.TorrentProvider):
 
             items = parsedXML.findall('.//item')
 
-            if items.length == 0:
+            if len(items) == 0:
                 # Maybe this isn't really a failure?  Not sure what's best here
                 return (False, 'There were no items in the RSS feed from %s' % self.url)
 
