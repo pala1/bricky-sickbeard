@@ -125,6 +125,10 @@ class NameParser(object):
                 # Show.S04.Special is almost certainly not every episode in the season
                 if tmp_extra_info and cur_regex_name == 'season_only' and re.match(r'([. _-]|^)(special|extra)\w*([. _-]|$)', tmp_extra_info, re.I):
                     continue
+                # Show.S04xE03 is stupidity, not a full season match
+                if (tmp_extra_info and cur_regex_name == 'season_only'
+                        and re.match(r'([xe]{1,2}\d+).*', tmp_extra_info, re.I)):
+                    continue
                 result.extra_info = tmp_extra_info
             
             if 'release_group' in named_groups:
