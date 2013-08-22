@@ -1287,8 +1287,6 @@ class ConfigProviders:
                 sickbeard.SHOWRSS = curEnabled
             elif curProvider == 'kat':
                 sickbeard.KAT = curEnabled
-            elif curProvider == 'dailytvtorrents':
-                sickbeard.DAILYTVTORRENTS = curEnabled
             elif curProvider == 'publichd':
                 sickbeard.PUBLICHD = curEnabled
             elif curProvider == 'iplayer':

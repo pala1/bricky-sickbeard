@@ -26,7 +26,6 @@ __all__ = ['ezrss',
            'omgwtfnzbs',
            'showrss',
            'kat',
-           'dailytvtorrents',
            'publichd',
            'iplayer',
            ]

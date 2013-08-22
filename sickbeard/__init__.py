@@ -31,7 +31,7 @@ from threading import Lock
 # apparently py2exe won't build these unless they're imported somewhere
 from sickbeard import providers, metadata
 from providers import ezrss, tvtorrents, torrentleech, btn, nzbsrus, newznab, womble, nzbx, omgwtfnzbs
-from providers import showrss, kat, dailytvtorrents, iplayer, publichd, anyrss
+from providers import showrss, kat, iplayer, publichd, anyrss
 from sickbeard.config import CheckSection, check_setting_int, check_setting_str, ConfigMigrator, check_setting_float
 
 from sickbeard import searchCurrent, searchBacklog, showUpdater, versionChecker, properFinder, autoPostProcesser
@@ -170,7 +170,6 @@ LIBTORRENT_PORT_MAX = 6891
 EZRSS = False
 SHOWRSS = False
 KAT = False
-DAILYTVTORRENTS = False
 PUBLICHD = False
 TVTORRENTS = False
 TVTORRENTS_DIGEST = None
@@ -358,7 +357,7 @@ def initialize(consoleLogging=True):
                 USE_LIBTORRENT, LIBTORRENT_AVAILABLE, LIBTORRENT_WORKING_DIR, LIBTORRENT_SEED_TO_RATIO, \
                 LIBTORRENT_MAX_DL_SPEED, LIBTORRENT_MAX_UL_SPEED, torrentProcessScheduler, PREFER_MAGNETS, \
                 LIBTORRENT_PORT_MIN, LIBTORRENT_PORT_MAX, \
-                SHOWRSS, KAT, DAILYTVTORRENTS, PUBLICHD, \
+                SHOWRSS, KAT, PUBLICHD, \
                 NZBS, NZBS_UID, NZBS_HASH, EZRSS, TVTORRENTS, TVTORRENTS_DIGEST, TVTORRENTS_HASH, BTN, BTN_API_KEY, TORRENTLEECH, TORRENTLEECH_KEY, \
                 TORRENT_DIR, USENET_RETENTION, SOCKET_TIMEOUT, \
                 SEARCH_FREQUENCY, DEFAULT_SEARCH_FREQUENCY, BACKLOG_SEARCH_FREQUENCY, \
@@ -585,10 +584,7 @@ def initialize(consoleLogging=True):
         
         CheckSection(CFG, 'KAT')
         KAT = bool(check_setting_int(CFG, 'KAT', 'kat', 0))
-        
-        CheckSection(CFG, 'DAILYTVTORRENTS')
-        DAILYTVTORRENTS = bool(check_setting_int(CFG, 'DAILYTVTORRENTS', 'dailytvtorrents', 0))
-        
+
         CheckSection(CFG, 'PUBLICHD')
         PUBLICHD = bool(check_setting_int(CFG, 'PUBLICHD', 'publichd', 1))
 
@@ -1145,10 +1141,7 @@ def save_config():
     
     new_config['SHOWRSS'] = {}
     new_config['SHOWRSS']['showrss'] = int(SHOWRSS)
-    
-    new_config['DAILYTVTORRENTS'] = {}
-    new_config['DAILYTVTORRENTS']['dailytvtorrents'] = int(DAILYTVTORRENTS)
-    
+
     new_config['PUBLICHD'] = {}
     new_config['PUBLICHD']['publichd'] = int(PUBLICHD)
     
