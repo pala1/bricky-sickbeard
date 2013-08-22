@@ -1,6 +1,3 @@
-# Author: Nic Wolfe <nic@wolfeden.ca>
-# URL: http://code.google.com/p/sickbeard/
-#
 # This file is part of Sick Beard.
 #
 # Sick Beard is free software: you can redistribute it and/or modify
@@ -15,6 +12,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with Sick Beard.  If not, see <http://www.gnu.org/licenses/>.
+#
+# @author: Dermot Buckley <dermot@buckley.ie>
+# Adapted from the original, which was authored by Nic Wolfe <nic@wolfeden.ca>
 
 import urllib
 import re

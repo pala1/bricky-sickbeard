@@ -1,5 +1,3 @@
-# Author: Nic Wolfe <nic@wolfeden.ca>
-# URL: http://code.google.com/p/sickbeard/
 #
 # This file is part of Sick Beard.
 #
@@ -11,10 +9,13 @@
 # Sick Beard is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
+# GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with Sick Beard.  If not, see <http://www.gnu.org/licenses/>.
+#
+# @author: Dermot Buckley <dermot@buckley.ie>
+# Extensive changes/improvments by Ash Eldritch <ash.eldritch@gmail.com>
 
 import urllib, urllib2
 import StringIO, zlib, gzip
