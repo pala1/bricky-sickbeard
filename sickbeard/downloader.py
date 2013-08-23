@@ -31,11 +31,16 @@ LIBTORRENT_AVAILABLE = False
 try:
     #http://www.rasterbar.com/products/libtorrent/manual.html
     import libtorrent as lt
-    logger.log('libtorrent import succeeded, libtorrent is available', logger.MESSAGE)
-    LIBTORRENT_AVAILABLE = True
+    if (lt.version_major, lt.version_minor) < (0, 16):
+        logger.log(u'The version of libtorrent you have installed "' +
+                   lt.version + '", is too old for use with sickbeard.  ' +
+                   'Version 0.16 or later required.', logger.MESSAGE)
+    else:
+        logger.log('libtorrent import succeeded, libtorrent is available', logger.MESSAGE)
+        LIBTORRENT_AVAILABLE = True
 except ImportError:
     logger.log('libtorrent import failed, functionality will not be available', logger.MESSAGE)
-    
+
 # the number of seconds we wait after adding a torrent to see signs of download beginning
 TORRENT_START_WAIT_TIMEOUT_SECS = 120
 
