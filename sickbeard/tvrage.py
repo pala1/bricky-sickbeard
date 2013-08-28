@@ -25,6 +25,7 @@ import traceback
 import sickbeard
 
 from sickbeard import logger
+from sickbeard import tvtumbler
 from sickbeard.common import UNAIRED
 
 from sickbeard import db
@@ -227,14 +228,20 @@ class TVRage:
 
         url = "http://services.tvrage.com/tools/quickinfo.php?"
 
-        # if we need full info OR if we don't have a tvrage id, use show name
-        if full == True or self.show.tvrid == 0:
+        if full or self.show.tvrid == 0:
+            # for some reason, the previous code here forced the use of the tvrage slug
+            # rather than the tvrage_id when 'full' was True.  I expect there was a
+            # reason for this, so best to do the same.
             if self.show.tvrname != "" and self.show.tvrname != None:
                 showName = self.show.tvrname
             else:
                 showName = self.show.name
-
             urlData = {'show': showName.encode('utf-8')}
+
+            if not full:  # as per above, only use tvtumbler if not 'full'
+                tvtumb = tvtumbler.show_info(self.show.tvdbid)
+                if tvtumb and 'tvrage_id' in tvtumb and tvtumb['tvrage_id']:
+                    urlData = {'sid': tvtumb['tvrage_id']}
 
         # if we don't need full info and we have a tvrage id, use it
         else:

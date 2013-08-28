@@ -27,17 +27,9 @@ import generic
 from sickbeard import helpers
 from sickbeard import logger
 from sickbeard import tvcache
+from sickbeard import tvtumbler
 from sickbeard.scene_exceptions import get_scene_exceptions
 
-# use the built-in if it's available (python 2.6), if not use the included library
-try:
-    import json
-except ImportError:
-    from lib import simplejson as json
-
-UPDATE_INTERVAL = 432000 # 5 days
-ATTEMPT_EXCEPTIONS_IF_NOT_KNOWN = True
-SHOW_LOOKUP_URL = 'http://show-api.tvtumbler.com/api/show'
 
 class ShowRssProvider(generic.TorrentProvider):
     
@@ -65,42 +57,15 @@ class ShowRssProvider(generic.TorrentProvider):
             return results  
         results = generic.TorrentProvider.findSeasonResults(self, show, season)
         return results
-    
-    
+
     @classmethod
     def _get_showrss_id(cls, tvdb_id):
-        try:
-            unusedVar = cls.knownShows
-        except AttributeError:
-            cls.knownShows = {}
-            
-        try:
-            cachedResult = cls.knownShows[str(tvdb_id)]
-            if time.time() < (cachedResult['mtime'] + UPDATE_INTERVAL):
-                # cached result is still considered current, use it
-                return cachedResult['response']
-            # otherwise we just fall through to lookup
-        except KeyError:
-            pass    # no cached value, just fall through to lookup
-            
-        
-        url = SHOW_LOOKUP_URL + '?tvdb_id=' + str(tvdb_id)
-        data = helpers.getURL(url, timeout=60) # give this a longer timeout b/c it may take a while
-        result = json.loads(data)
-        if not result:
-            logger.log(u"Empty lookup result -> failed to find show id", logger.DEBUG)
+        tvt_info = tvtumbler.show_info(tvdb_id)
+        if tvt_info and 'showrss_id' in tvt_info:
+            return tvt_info['showrss_id']
+        else:
             return None
-        if result['error']:
-            logger.log(u"Lookup failed: " + result['errorMessage'], logger.DEBUG)
-            return None
-        
-        # result is good, store it for later
-        cls.knownShows[str(tvdb_id)] = {'mtime': time.time(), 
-                                        'response': result['show']['showrss_id'] }
-        
-        return result['show']['showrss_id']
-    
-    
+
     def _doSearch(self, search_params, show=None):
     
         # we just need one "param" for now, the ShowRssId
