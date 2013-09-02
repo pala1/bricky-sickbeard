@@ -17,13 +17,13 @@ except ImportError:
 
 UPDATE_INTERVAL = 432000  # 5 days
 SHOW_LOOKUP_URL = 'http://show-api.tvtumbler.com/api/show'
-_tvtumber_cache = {}
+_tvtumbler_cache = {}
 
 
 def show_info(tvdb_id):
-    global _tvtumber_cache
+    global _tvtumbler_cache
     try:
-        cachedResult = _tvtumber_cache[str(tvdb_id)]
+        cachedResult = _tvtumbler_cache[str(tvdb_id)]
         if time.time() < (cachedResult['mtime'] + UPDATE_INTERVAL):
             # cached result is still considered current, use it
             return cachedResult['response']
@@ -42,7 +42,7 @@ def show_info(tvdb_id):
         return None
 
     # result is good, store it for later
-    _tvtumber_cache[str(tvdb_id)] = {'mtime': time.time(),
+    _tvtumbler_cache[str(tvdb_id)] = {'mtime': time.time(),
                                     'response': result['show']}
 
     return result['show']
