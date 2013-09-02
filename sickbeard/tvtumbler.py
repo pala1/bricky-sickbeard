@@ -21,6 +21,7 @@ _tvtumber_cache = {}
 
 
 def show_info(tvdb_id):
+    global _tvtumber_cache
     try:
         cachedResult = _tvtumber_cache[str(tvdb_id)]
         if time.time() < (cachedResult['mtime'] + UPDATE_INTERVAL):
