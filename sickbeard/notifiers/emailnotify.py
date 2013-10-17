@@ -119,7 +119,8 @@ class EmailNotifier:
             srv.sendmail(smtp_from, to, msg.as_string())
             srv.quit()
             return True
-        except Exception as e:
+        except Exception:
+            _, e, _ = sys.exc_info()
             self.last_err = '%s' % e
             return False
 
