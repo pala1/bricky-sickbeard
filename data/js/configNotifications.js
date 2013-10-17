@@ -1,11 +1,6 @@
-<<<<<<< HEAD
-$(document).ready(function () {
-    var loading = '<img src="' + sbRoot + '/images/loading16.gif" height="16" width="16" />';
-=======
 $(document).ready(function(){
     var loading = '<img src="'+sbRoot+'/images/loading16.gif" height="16" width="16" />';
     var notify_data = null;
->>>>>>> ee346710c4c2af0bfea33d02e341b4ca4612d582
 
     $('#testGrowl').click(function () {
         $('#testGrowl-result').html(loading);
@@ -73,9 +68,6 @@ $(document).ready(function(){
             function (data) { $('#testLibnotify-result').html(data); });
     });
 
-<<<<<<< HEAD
-    $('#twitterStep1').click(function () {
-=======
     $('#testEmail').click(function () {
         var status, host, port, tls, from, user, pwd, err, to;
         status = $('#testEmail-result');
@@ -111,9 +103,8 @@ $(document).ready(function(){
             }
         }
     });
-  
-    $('#twitterStep1').click(function(){
->>>>>>> ee346710c4c2af0bfea33d02e341b4ca4612d582
+
+    $('#twitterStep1').click(function () {
         $('#testTwitter-result').html(loading);
         $.get(sbRoot + "/home/twitterStep1", function (data) {window.open(data); })
             .done(function () { $('#testTwitter-result').html('<b>Step1:</b> Confirm Authorization'); });
