@@ -141,7 +141,7 @@ def download_from_torrent(torrent, filename=None, postProcessingDone=False, star
         checkedForMedia = False
         if torrent.startswith('magnet:') or torrent.startswith('http://') or torrent.startswith('https://'):
             logger.log(u'Adding torrent to session: %s' % (torrent), logger.DEBUG)
-            atp["url"] = torrent
+            atp["url"] = torrent.encode('ascii', 'ignore')
             name_to_use = filename
             total_size_to_use = -1
         else:
