@@ -283,7 +283,7 @@ def set_max_dl_speed(max_dl_speed):
     """
     sess = _get_session(False)
     if sess:
-        _lt_sess.set_download_rate_limit(max_dl_speed * 1024)
+        sess.set_download_rate_limit(max_dl_speed * 1024)
 
 def set_max_ul_speed(max_ul_speed):
     """
@@ -292,7 +292,7 @@ def set_max_ul_speed(max_ul_speed):
     """
     sess = _get_session(False)
     if sess:
-        _lt_sess.set_upload_rate_limit(max_ul_speed * 1024)
+        sess.set_upload_rate_limit(max_ul_speed * 1024)
     
 def _get_session(createIfNeeded=True):
     global _lt_sess
