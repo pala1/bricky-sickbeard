@@ -22,7 +22,6 @@ from email.mime.text import MIMEText
 import sickbeard
 
 from sickbeard import logger
-from sickbeard import db
 from sickbeard.exceptions import ex
 
 class EmailNotifier:
@@ -88,16 +87,6 @@ class EmailNotifier:
             if(len(addr.strip()) > 0):
                 addrs.append(addr)
 
-        # Grab the recipients for the show
-        mydb = db.DBConnection()
-        for s in show:
-            for subs in mydb.select("SELECT notify_list FROM tv_shows WHERE show_name = ?", (s,)):
-                if subs['notify_list']:
-                    for addr in subs['notify_list'].split(','):
-                        if(len(addr.strip()) > 0):
-                            addrs.append(addr)
-                        
-        addrs = set(addrs)
         logger.log('Notification recepients: %s' % addrs, logger.DEBUG)
         return addrs
     

@@ -1353,7 +1353,7 @@ class ConfigNotifications:
                           pytivo_host=None, pytivo_share_name=None, pytivo_tivo_name=None,
                           use_nma=None, nma_notify_onsnatch=None, nma_notify_ondownload=None, nma_api=None, nma_priority=0,
                           use_email=None, email_notify_onsnatch=None, email_notify_ondownload=None, email_host=None, email_port=25, email_from=None,
-                          email_tls=None, email_user=None, email_password=None, email_list=None, email_show_list=None, email_show=None ):
+                          email_tls=None, email_user=None, email_password=None, email_list=None):
 
         results = []
 
@@ -1455,11 +1455,6 @@ class ConfigNotifications:
             email_tls = 1
         else:
             email_tls = 0
-
-        # Update per show notifications, if provided
-        if int(email_show) >= 0:
-            mydb = db.DBConnection()
-            mydb.action("UPDATE tv_shows SET notify_list = ? WHERE show_id = ?", (email_show_list, int(email_show)))
 
         if twitter_notify_onsnatch == "on":
             twitter_notify_onsnatch = 1

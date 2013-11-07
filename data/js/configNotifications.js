@@ -225,33 +225,4 @@ $(document).ready(function(){
         $.get(sbRoot + "/home/testNMA", {'nma_api': nma_api, 'nma_priority': nma_priority},
             function (data) { $('#testNMA-result').html(data); });
     });
-
-    $('#email_show').change(function () {
-        var key = parseInt($('#email_show').val(), 10);
-        $('#email_show_list').val(key >= 0 ? notify_data[key.toString()].list : '');
-    });
-
-    // Update the internal data struct anytime settings are saved to the server
-    $('#email_show').bind('notify', function () { load_show_notify_lists(); });
-
-    function load_show_notify_lists() {
-        $.get(sbRoot + "/home/loadShowNotifyLists", function (data) {
-            var list, html, s;
-            list = $.parseJSON(data);
-            notify_data = list;
-            if (list._size === 0) {
-                return;
-            }
-            html = '<option value="-1">-- Select --</option>';
-            for (s in list) {
-                if (s.charAt(0) !== '_') {
-                    html += '<option value="' + list[s].id + '">' + $('<div/>').text(list[s].name).html() + '</option>';
-                }
-            }
-            $('#email_show').html(html);
-            $('#email_show_list').val('');
-        });
-    }
-    // Load the per show notify lists everytime this page is loaded
-    load_show_notify_lists();
 });

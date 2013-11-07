@@ -25,7 +25,7 @@ from sickbeard.providers.generic import GenericProvider
 from sickbeard import encodingKludge as ek
 from sickbeard.name_parser.parser import NameParser, InvalidNameException
 
-MAX_DB_VERSION = 13
+MAX_DB_VERSION = 12
 
 
 class MainSanityCheck(db.DBSanityCheck):
@@ -677,10 +677,3 @@ class Add1080pAndRawHDQualities(RenameSeasonFolders):
         logger.log(u"Performing a vacuum on the database.", logger.DEBUG)
         self.connection.action("VACUUM")
 
-class AddEmailSubscriptionTable(FixAirByDateSetting):
-    def test(self):
-        return self.hasColumn("tv_shows", "notify_list")
-    
-    def execute(self):
-        self.addColumn('tv_shows', 'notify_list', 'TEXT', None)
-        self.incDBVersion()
