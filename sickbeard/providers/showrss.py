@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Sick Beard.  If not, see <http://www.gnu.org/licenses/>.
 
+import xml.dom.minidom
 from xml.dom.minidom import parseString
 from pprint import pprint
 
@@ -39,8 +40,8 @@ class ShowRssProvider(generic.TorrentProvider):
         generic.TorrentProvider.__init__(self, "ShowRSS")
         self.supportsBacklog = True
         self.cache = ShowRssCache(self)
-        self.url = 'http://showrss.karmorra.info/'
-        self.backup_urls = ['http://showrss.karmorra.info.nyud.net/', ]
+        self.url = 'http://showrss.info/'
+        self.backup_urls = ['http://showrss.karmorra.info/', 'http://showrss.info.nyud.net/', ]
 
     def isEnabled(self):
         return sickbeard.SHOWRSS
@@ -128,18 +129,48 @@ class ShowRssProvider(generic.TorrentProvider):
             return [{}]
         # we can only usefully query by show, so do that.
         return self._get_season_search_strings(ep_obj.show)
-    
-    def _get_title_and_url(self, item):
-        (title, url) = generic.TorrentProvider._get_title_and_url(self, item)
-                
-        # Sometimes showrss adds an unnecessary "HD 720p: " to the start of the show
-        # name (unnecessary b/c the same info is also after the show name), which
-        # throws off the name regexes.  So trim it off if present.
-        if title and title.startswith(u"HD 720p: "):
-            title = title[9:]
-            logger.log(u"Trimmed 'HD 720p: ' from title to get %s" % title, logger.DEBUG)
 
-        return (title, url)
+    def _get_title_and_url(self, item):
+        '''Yup, this now gets its own "special" parser, because some muppet decided that the ezrss standard
+        wasn't good enough for showrss, so they got creative and came up with their own standard.
+        Muppets.  "Special" ones.
+
+        This is the crap we have to deal with:
+        <item>
+            <title>Beauty and the Beast (2012) 2x06 Father Knows Best</title>
+            <link>magnet:?xt=urn:btih:836EC00F0DB1AC126D11B22378DC42BB40DADD35&amp;dn=Beauty+and+the+Beast+2012+S02E06+HDTV+x264+2HD&amp;tr=udp://tracker.openbittorrent.com:80&amp;tr=udp://tracker.publicbt.com:80&amp;tr=udp://tracker.istole.it:80&amp;tr=http://tracker.istole.it&amp;tr=http://fr33dom.h33t.com:3310/announce</link>
+            <guid isPermaLink="false">569aab610be9c6ee5f81b9afcc8beb59</guid>
+            <pubDate>Mon, 11 Nov 2013 04:40:01 +0000</pubDate>
+            <description>New standard torrent: Beauty and the Beast (2012) 2x06 Father Knows Best. Link: &lt;a href="magnet:?xt=urn:btih:836EC00F0DB1AC126D11B22378DC42BB40DADD35&amp;dn=Beauty+and+the+Beast+2012+S02E06+HDTV+x264+2HD&amp;tr=udp://tracker.openbittorrent.com:80&amp;tr=udp://tracker.publicbt.com:80&amp;tr=udp://tracker.istole.it:80&amp;tr=http://tracker.istole.it&amp;tr=http://fr33dom.h33t.com:3310/announce"&gt;magnet:?xt=urn:btih:836EC00F0DB1AC126D11B22378DC42BB40DADD35&amp;dn=Beauty+and+the+Beast+2012+S02E06+HDTV+x264+2HD&amp;tr=udp://tracker.openbittorrent.com:80&amp;tr=udp://tracker.publicbt.com:80&amp;tr=udp://tracker.istole.it:80&amp;tr=http://tracker.istole.it&amp;tr=http://fr33dom.h33t.com:3310/announce&lt;/a&gt;</description>
+            <showrss:showid>509</showrss:showid>
+            <showrss:showname>Beauty and the Beast (2012)</showrss:showname>
+            <showrss:episode>30801</showrss:episode>
+            <showrss:info_hash>836EC00F0DB1AC126D11B22378DC42BB40DADD35</showrss:info_hash>
+            <showrss:rawtitle>Beauty and the Beast 2012 S02E06 HDTV x264 2HD</showrss:rawtitle>
+            <enclosure url="magnet:?xt=urn:btih:836EC00F0DB1AC126D11B22378DC42BB40DADD35&amp;dn=Beauty+and+the+Beast+2012+S02E06+HDTV+x264+2HD&amp;tr=udp://tracker.openbittorrent.com:80&amp;tr=udp://tracker.publicbt.com:80&amp;tr=udp://tracker.istole.it:80&amp;tr=http://tracker.istole.it&amp;tr=http://fr33dom.h33t.com:3310/announce" length="0" type="application/x-bittorrent"/>
+        </item>
+        '''
+        if isinstance(item, xml.dom.minidom.Node):
+            try:
+                title = helpers.get_xml_text(item.getElementsByTagName('showrss:rawtitle')[0], mini_dom=True)
+            except Exception:
+                title = helpers.get_xml_text(item.getElementsByTagName('title')[0], mini_dom=True)
+
+            url = helpers.get_xml_text(item.getElementsByTagName('link')[0], mini_dom=True)
+            if url:
+                url = url.replace('&amp;', '&')
+
+            return (title, url)
+        else:
+            title = helpers.get_xml_text(item.find('{http://showrss.info/}rawtitle'))
+            if not title:
+                title = helpers.get_xml_text(item.find('title'))
+            url = helpers.get_xml_text(item.find('link'))
+            if url:
+                url = url.replace('&amp;', '&')
+
+            return (title, url)
+
 
 
 class ShowRssCache(tvcache.TVCache):
